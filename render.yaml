@@ -1,4 +1,4 @@
-# Render Blueprint: one Docker web service + one managed PostgreSQL database.
+# Render Blueprint: one Docker web service + one managed PostgreSQL database + one static MVP preview site.
 # Deploys are triggered by GitHub Actions (.github/workflows/deploy.yml) via the service's Deploy Hook, so autoDeploy is off.
 # Plan names/prices change - confirm them in the Render dashboard when you create the Blueprint.
 databases:
@@ -33,3 +33,12 @@ services:
         value: "false"
       - key: PORT
         value: "4000"
+
+  # Static MVP preview (sample data, no backend): static-mvp/index.html
+  - type: web
+    name: enterprisecrm-mvp
+    runtime: static
+    rootDir: static-mvp
+    buildCommand: echo "no build"
+    staticPublishPath: .
+    autoDeployTrigger: commit

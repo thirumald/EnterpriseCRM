@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnterpriseCRM MVP</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1c2330;--muted:#667085;--line:#e4e7ec;--brand:#2f5bea;--crit:#d92d20;--warn:#b54708;--ok:#067647}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1420;--card:#171d2b;--text:#e8ebf2;--muted:#98a2b3;--line:#283042;--brand:#6c8cff;--crit:#f97066;--warn:#fdb022;--ok:#47cd89}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{display:flex;align-items:center;gap:16px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;margin-right:auto}
+nav{display:flex;gap:4px}
+nav button{border:0;background:none;color:var(--muted);padding:8px 12px;border-radius:6px;font:inherit;cursor:pointer}
+nav button.on{background:var(--brand);color:#fff}
+main{max-width:1000px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px}
+.stat b{display:block;font-size:26px}.stat span{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+.tag{padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.critical,.P1{color:var(--crit)}.warning,.P2{color:var(--warn)}.ok,.P3,.Resolved{color:var(--ok)}
+.bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+input,select,button.act{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text)}
+button.act{background:var(--brand);color:#fff;border-color:var(--brand);cursor:pointer}
+.scroll{overflow-x:auto}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>EnterpriseCRM <span style="color:var(--muted);font-weight:400">· MVP preview</span></h1>
+  <nav id="nav"></nav>
+</header>
+<main id="view"></main>
+<footer>Static demo with sample data. Changes are saved in this browser only.</footer>
+<script>
+const seed={
+  alerts:[
+    {id:1,sev:"critical",host:"core-sw-01",msg:"Interface Gi0/1 down",dc:"Main DC",acct:"Acme Corp"},
+    {id:2,sev:"warning",host:"edge-fw-02",msg:"CPU above 85% for 10 min",dc:"Edge DC West",acct:"Globex"},
+    {id:3,sev:"warning",host:"db-prod-03",msg:"Disk 91% full",dc:"Main DC",acct:"Acme Corp"},
+    {id:4,sev:"ok",host:"app-07",msg:"Heartbeat recovered",dc:"Edge DC East",acct:"Initech"}],
+  tickets:[
+    {id:1042,subject:"VPN drops every hour",acct:"Acme Corp",pri:"P2",status:"Open",due:"4h"},
+    {id:1043,subject:"Core switch link down",acct:"Acme Corp",pri:"P1",status:"Open",due:"1h"},
+    {id:1038,subject:"Invoice address change",acct:"Globex",pri:"P3",status:"Resolved",due:"-"}],
+  accounts:[
+    {name:"Acme Corp",owner:"Mia",health:62,arr:240000,renews:"2026-12-15"},
+    {name:"Globex",owner:"Mia",health:88,arr:120000,renews:"2027-03-01"},
+    {name:"Initech",owner:"Sam",health:95,arr:60000,renews:"2027-06-30"}]
+};
+let db;
+try{db=JSON.parse(localStorage.getItem("ecrm")||"null")}catch(e){}
+db=db||structuredClone(seed);
+const save=()=>{try{localStorage.setItem("ecrm",JSON.stringify(db))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money=n=>"$"+n.toLocaleString();
+let tab="noc";
+const tabs={noc:"NOC",helpdesk:"Help Desk",crm:"CRM"};
+const views={
+ noc(){
+  const open=db.alerts.filter(a=>a.sev!=="ok");
+  return `<div class="grid">
+   <div class="card stat"><b>${open.filter(a=>a.sev==="critical").length}</b><span>Critical alerts</span></div>
+   <div class="card stat"><b>${open.filter(a=>a.sev==="warning").length}</b><span>Warnings</span></div>
+   <div class="card stat"><b>${db.tickets.filter(t=>t.status==="Open").length}</b><span>Open tickets</span></div></div>
+   <div class="scroll"><table><tr><th>Severity</th><th>Host</th><th>Message</th><th>Site</th><th>Customer</th><th></th></tr>
+   ${db.alerts.map(a=>`<tr><td><span class="tag ${a.sev}">${a.sev}</span></td><td>${esc(a.host)}</td><td>${esc(a.msg)}</td><td>${esc(a.dc)}</td><td>${esc(a.acct)}</td>
+   <td>${a.sev==="ok"?"":`<button class="act" data-ticket="${a.id}">Raise ticket</button>`}</td></tr>`).join("")}</table></div>`;
+ },
+ helpdesk(){
+  return `<div class="bar"><input id="subj" placeholder="New ticket subject"><select id="pri"><option>P1</option><option selected>P2</option><option>P3</option></select>
+   <select id="tacct">${db.accounts.map(a=>`<option>${esc(a.name)}</option>`).join("")}</select><button class="act" id="add">Add ticket</button></div>
+   <div class="scroll"><table><tr><th>#</th><th>Subject</th><th>Customer</th><th>Priority</th><th>Status</th><th>SLA due</th><th></th></tr>
+   ${db.tickets.map(t=>`<tr><td>${t.id}</td><td>${esc(t.subject)}</td><td>${esc(t.acct)}</td><td><span class="tag ${t.pri}">${t.pri}</span></td><td>${t.status}</td><td>${t.due}</td>
+   <td>${t.status==="Open"?`<button class="act" data-resolve="${t.id}">Resolve</button>`:""}</td></tr>`).join("")}</table></div>`;
+ },
+ crm(){
+  const total=db.accounts.reduce((s,a)=>s+a.arr,0);
+  return `<div class="grid"><div class="card stat"><b>${money(total)}</b><span>Total ARR</span></div>
+   <div class="card stat"><b>${db.accounts.length}</b><span>Accounts</span></div></div>
+   <div class="scroll"><table><tr><th>Account</th><th>Owner</th><th>Health</th><th>ARR</th><th>Renews</th></tr>
+   ${db.accounts.map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(a.owner)}</td><td><span class="tag ${a.health<70?"critical":a.health<85?"warning":"ok"}">${a.health}</span></td><td>${money(a.arr)}</td><td>${a.renews}</td></tr>`).join("")}</table></div>`;
+ }
+};
+function render(){
+  document.getElementById("nav").innerHTML=Object.entries(tabs).map(([k,v])=>`<button class="${k===tab?"on":""}" data-tab="${k}">${v}</button>`).join("");
+  document.getElementById("view").innerHTML=views[tab]();
+}
+document.addEventListener("click",e=>{
+  const t=e.target;
+  if(t.dataset.tab){tab=t.dataset.tab;render();}
+  else if(t.dataset.resolve){const x=db.tickets.find(i=>i.id==t.dataset.resolve);x.status="Resolved";x.due="-";save();render();}
+  else if(t.dataset.ticket){
+    const a=db.alerts.find(i=>i.id==t.dataset.ticket);
+    db.tickets.unshift({id:Math.max(...db.tickets.map(i=>i.id))+1,subject:a.host+": "+a.msg,acct:a.acct,pri:a.sev==="critical"?"P1":"P2",status:"Open",due:a.sev==="critical"?"1h":"4h"});
+    save();tab="helpdesk";render();
+  }
+  else if(t.id==="add"){
+    const s=document.getElementById("subj").value.trim(); if(!s)return;
+    const pri=document.getElementById("pri").value;
+    db.tickets.unshift({id:Math.max(...db.tickets.map(i=>i.id))+1,subject:s,acct:document.getElementById("tacct").value,pri,status:"Open",due:{P1:"1h",P2:"4h",P3:"1d"}[pri]});
+    save();render();
+  }
+});
+render();
+</script>
+</body>
+</html>

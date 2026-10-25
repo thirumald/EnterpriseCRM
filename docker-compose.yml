@@ -1,0 +1,16 @@
+# NOTE: written for convenience; not exercised in the authoring environment (no Docker there).
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16     # PostgreSQL 16 + TimescaleDB (hypertables are enabled automatically)
+    environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: enterprisecrm }
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 3s, retries: 20 }
+  app:
+    build: .
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/enterprisecrm
+      PORT: "4000"
+    ports: ["4000:4000", "5514:5514/udp"]
+volumes: { pgdata: {} }

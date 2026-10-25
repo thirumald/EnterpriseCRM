@@ -170,3 +170,6 @@ svg text{font-family:inherit}
 .dev-foot{margin-top:auto;padding:14px 16px;font-size:12px;color:#6b7690;border-top:1px solid rgba(255,255,255,.08)}
 .dev-foot b{color:var(--side-text);font-weight:600}
 .foot{margin-top:28px;padding:14px 0 4px;text-align:center;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+
+.brand img{display:block;height:44px;width:auto;max-width:100%}
+.side .brand{height:68px}

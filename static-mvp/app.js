@@ -84,7 +84,7 @@
   function openAlerts() { return D.alerts.filter((a) => a.state === 'open' && a.sev !== 'info').length; }
   function renderShell() {
     const r = ROLES[ui.role];
-    $('#side').innerHTML = `<div class="brand"><i>${ic('layers', 18)}</i>${e(APP.BRAND)}</div><nav class="nav" aria-label="Main">` +
+    $('#side').innerHTML = `<div class="brand"><img src="assets/presight-logo.png" alt="${e(APP.BRAND)}" width="170" height="49"></div><nav class="nav" aria-label="Main">` +
       NAV.map(([g, items]) => {
         const vis = items.filter((i) => r.views.includes(i[0]));
         return vis.length ? `<div class="nav-group"><h6>${e(g)}</h6>${vis.map((i) => `<a data-a="nav" data-id="${i[0]}" class="${ui.route === i[0] ? 'on' : ''}" tabindex="0" role="link">${ic(i[2])}<span>${e(i[1])}</span>${i[0] === 'noc' && openAlerts() ? `<span class="badge">${openAlerts()}</span>` : ''}</a>`).join('')}</div>` : '';

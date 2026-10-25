@@ -504,7 +504,7 @@
   };
   ACT.setTheme = (t) => { ui.theme = t.value; A.save(); A.render(); };
   ACT.setDense = (t) => { ui.dense = t.checked; A.save(); A.render(); };
-  ACT.exportJson = () => download('presight-crm-demo.json', JSON.stringify(D(), null, 2), 'application/json');
+  ACT.exportJson = () => download('presight-nexus-demo.json', JSON.stringify(D(), null, 2), 'application/json');
   ACT.resetDemo = () => { if (confirm('Reset all demo data to the original sample?')) A.reset(); };
 
   /* deep links such as #/tickets/1043 open the matching drawer */

@@ -2,7 +2,7 @@
 /* Core: state, helpers, shell (sidebar/topbar), routing, overlays, global event handling. Views live in views.js. */
 (function () {
   const KEY = 'ecrm-enterprise-v1';
-  const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight CRM', DEV: 'Thirumal D' });
+  const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight Nexus', DEV: 'Thirumal D' });
 
   /* ---------- helpers ---------- */
   const e = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

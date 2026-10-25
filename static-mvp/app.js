@@ -2,7 +2,7 @@
 /* Core: state, helpers, shell (sidebar/topbar), routing, overlays, global event handling. Views live in views.js. */
 (function () {
   const KEY = 'ecrm-enterprise-v1';
-  const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {} });
+  const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight CRM', DEV: 'Thirumal D' });
 
   /* ---------- helpers ---------- */
   const e = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -84,11 +84,11 @@
   function openAlerts() { return D.alerts.filter((a) => a.state === 'open' && a.sev !== 'info').length; }
   function renderShell() {
     const r = ROLES[ui.role];
-    $('#side').innerHTML = `<div class="brand"><i>${ic('layers', 18)}</i>EnterpriseCRM</div><nav class="nav" aria-label="Main">` +
+    $('#side').innerHTML = `<div class="brand"><i>${ic('layers', 18)}</i>${e(APP.BRAND)}</div><nav class="nav" aria-label="Main">` +
       NAV.map(([g, items]) => {
         const vis = items.filter((i) => r.views.includes(i[0]));
         return vis.length ? `<div class="nav-group"><h6>${e(g)}</h6>${vis.map((i) => `<a data-a="nav" data-id="${i[0]}" class="${ui.route === i[0] ? 'on' : ''}" tabindex="0" role="link">${ic(i[2])}<span>${e(i[1])}</span>${i[0] === 'noc' && openAlerts() ? `<span class="badge">${openAlerts()}</span>` : ''}</a>`).join('')}</div>` : '';
-      }).join('') + '</nav>';
+      }).join('') + '</nav><div class="dev-foot">Developed by <b>' + e(APP.DEV) + '</b></div>';
     $('#side').classList.toggle('on', ui.sidebar);
     $('#scrim').classList.toggle('on', ui.sidebar);
     $('#top').innerHTML = `<button class="iconbtn menu-btn" data-a="menu" aria-label="Open menu">${ic('menu')}</button>
@@ -115,13 +115,13 @@
     const act = document.activeElement;
     const keep = act && act.id && main.contains(act) ? { id: act.id, s: act.selectionStart, en: act.selectionEnd } : null;
     const v = APP.views[ui.route];
-    main.innerHTML = v ? v() : '<div class="empty">Not found</div>';
+    main.innerHTML = (v ? v() : '<div class="empty">Not found</div>') + '<footer class="foot">' + e(APP.BRAND) + ' &middot; Developed by ' + e(APP.DEV) + '</footer>';
     main.dataset.route = ui.route;
     main.scrollTop = prevRoute === ui.route ? prevScroll : 0;
     if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); try { el.setSelectionRange(keep.s, keep.en); } catch (_) {} } }
     renderDrawer(); renderModal();
     if (APP.afterRender) APP.afterRender();
-    document.title = (TITLES[ui.route] || 'EnterpriseCRM') + ' - EnterpriseCRM';
+    document.title = (TITLES[ui.route] || APP.BRAND) + ' - ' + APP.BRAND;
   }
   APP.render = render;
   APP.commit = (auditWhat, target) => { if (auditWhat) APP.audit(auditWhat, target); save(); render(); };

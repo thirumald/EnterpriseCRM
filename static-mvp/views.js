@@ -500,11 +500,11 @@
       `<div class="grid g2"><div class="card"><h3>${ic('sun', 16)}Appearance</h3>${field('Theme', `<select data-onchange="setTheme" aria-label="Theme">${opts([['auto', 'Match system'], ['light', 'Light'], ['dark', 'Dark']], ui.theme)}</select>`)}<label class="row"><span class="switch"><input type="checkbox" data-toggle="setDense" ${ui.dense ? 'checked' : ''}><span></span></span> Compact density</label><div class="row" style="margin-top:14px"><button class="btn" data-a="fullscreen">${ic('expand', 14)}Toggle full screen</button></div></div>
        <div class="card"><h3>${ic('database', 16)}Demo data</h3><p class="muted">This preview stores every change in your browser only. Nothing is sent to a server.</p><div class="row wrap"><button class="btn" data-a="exportJson">${ic('download', 14)}Export JSON</button><button class="btn danger" data-a="resetDemo">${ic('refresh', 14)}Reset demo data</button></div></div>
        <div class="card"><h3>${ic('lock', 16)}Current session</h3>${dl([['Signed in as', e(A.ROLES[ui.role].user)], ['Role', e(A.ROLES[ui.role].label)]])}<p class="muted small">Use the <b>View as</b> menu in the top bar to experience each role's navigation and permissions.</p></div>
-       <div class="card"><h3>${ic('layers', 16)}About</h3><p class="muted">EnterpriseCRM static preview. The full application (Node, PostgreSQL, edge collectors, SLA engine) lives in the main project; this build demonstrates the complete user experience with sample data.</p><p class="small muted">Shortcuts: <kbd>Ctrl</kbd>+<kbd>K</kbd> search - <kbd>Esc</kbd> close panels</p></div></div>`;
+       <div class="card"><h3>${ic('layers', 16)}About</h3><p class="muted">${e(A.BRAND)} static preview. The full application (Node, PostgreSQL, edge collectors, SLA engine) lives in the main project; this build demonstrates the complete user experience with sample data.</p><p class="small muted">Shortcuts: <kbd>Ctrl</kbd>+<kbd>K</kbd> search - <kbd>Esc</kbd> close panels</p></div></div>`;
   };
   ACT.setTheme = (t) => { ui.theme = t.value; A.save(); A.render(); };
   ACT.setDense = (t) => { ui.dense = t.checked; A.save(); A.render(); };
-  ACT.exportJson = () => download('enterprisecrm-demo.json', JSON.stringify(D(), null, 2), 'application/json');
+  ACT.exportJson = () => download('presight-crm-demo.json', JSON.stringify(D(), null, 2), 'application/json');
   ACT.resetDemo = () => { if (confirm('Reset all demo data to the original sample?')) A.reset(); };
 
   /* deep links such as #/tickets/1043 open the matching drawer */

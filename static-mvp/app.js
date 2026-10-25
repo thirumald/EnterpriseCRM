@@ -1,14 +1,14 @@
 'use strict';
 /* Core: state, helpers, shell (sidebar/topbar), routing, overlays, global event handling. Views live in views.js. */
 (function () {
-  const KEY = 'ecrm-enterprise-v1';
+  const KEY = 'presight-nexus-v2';
   const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight Nexus', DEV: 'Thirumal D' });
 
   /* ---------- helpers ---------- */
   const e = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ic = (n, sz = 18) => `<svg class="ic" width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${window.ICONS[n] || ''}</svg>`;
-  const money = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? '$' + Math.round(n / 1000) + 'k' : '$' + Number(n).toLocaleString());
-  const moneyFull = (n) => '$' + Number(n).toLocaleString();
+  const money = (n) => (n >= 1e6 ? '€' + (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? '€' + Math.round(n / 1000) + 'k' : '€' + Number(n).toLocaleString());
+  const moneyFull = (n) => '€' + Number(n).toLocaleString();
   const initials = (n) => String(n).split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const fmtDur = (ms) => {
     const neg = ms < 0; let m = Math.round(Math.abs(ms) / 60000);
@@ -45,12 +45,12 @@
   /* ---------- roles ---------- */
   const ALLV = ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'portal', 'accounts', 'pipeline', 'contracts', 'cmdb', 'ipam', 'automation', 'reports', 'users', 'audit', 'settings'];
   const ROLES = {
-    admin: { label: 'Administrator', views: ALLV, can: ['*'], user: 'Dana Admin' },
-    agent: { label: 'Service agent', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: 'Alice Agent' },
-    engineer: { label: 'Engineer', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules'], user: 'Nina Network' },
-    account_manager: { label: 'Account manager', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: 'Mia Morgan' },
-    noc: { label: 'NOC operator', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert'], user: 'Noah NOC' },
-    customer: { label: 'Customer (portal)', views: ['portal', 'kb', 'settings'], can: ['portal'], user: 'Wendy Albrecht' },
+    admin: { label: 'Administrator', views: ALLV, can: ['*'], user: 'Ardit Basha' },
+    agent: { label: 'Service agent', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: 'Elira Kola' },
+    engineer: { label: 'Engineer', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules'], user: 'Besnik Shehu' },
+    account_manager: { label: 'Account manager', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: 'Mira Hoxha' },
+    noc: { label: 'NOC operator', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert'], user: 'Genti Dervishi' },
+    customer: { label: 'Customer (portal)', views: ['portal', 'kb', 'settings'], can: ['portal'], user: 'Anila Koci' },
   };
   APP.ROLES = ROLES;
   const roleUser = () => ({ name: ROLES[ui.role].user });

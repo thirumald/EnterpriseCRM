@@ -39,7 +39,7 @@ window.ICONS = {
   play: '<path d="M7 4l13 8-13 8z"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
-  dollar: '<path d="M12 3v18M16.5 7.5C16 5.9 14.3 5 12 5s-4.5 1-4.5 3 2 2.7 4.5 3.3 4.5 1.3 4.5 3.2-2 3-4.5 3-4.2-1-4.7-2.7"/>',
+  dollar: '<path d="M18 6.5A6.5 6.5 0 0 0 7 9v6a6.5 6.5 0 0 0 11 2.5M4 10.5h9M4 13.5h9"/>',
   filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',

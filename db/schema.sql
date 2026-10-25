@@ -148,3 +148,9 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE TABLE IF NOT EXISTS notifications (
   id bigserial PRIMARY KEY, channel text, recipient text, subject text, body text, ref text, at timestamptz DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS users (
+  id serial PRIMARY KEY, username text UNIQUE NOT NULL, display_name text, role text NOT NULL
+    CHECK (role IN ('admin','agent','engineer','account_manager','noc','customer')),
+  password_hash text NOT NULL, account_id int REFERENCES accounts(id), active boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now(), last_login timestamptz
+);

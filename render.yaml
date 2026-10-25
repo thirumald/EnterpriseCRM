@@ -1,0 +1,35 @@
+# Render Blueprint: one Docker web service + one managed PostgreSQL database.
+# Deploys are triggered by GitHub Actions (.github/workflows/deploy.yml) via the service's Deploy Hook, so autoDeploy is off.
+# Plan names/prices change - confirm them in the Render dashboard when you create the Blueprint.
+databases:
+  - name: enterprisecrm-db
+    plan: basic-256mb
+    databaseName: enterprisecrm
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: enterprisecrm
+    runtime: docker
+    plan: starter
+    autoDeploy: false
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: enterprisecrm-db, property: connectionString }
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD         # first-run admin login: username "admin"
+        generateValue: true
+      - key: API_KEY                # x-api-key for collectors, email gateway and /api/v1/tickets
+        generateValue: true
+      - key: DEMO_PASSWORD          # password for the demo staff/customer logins
+        generateValue: true
+      - key: SEED_DEMO              # "true" loads the demo estate; set "false" for an empty production instance
+        value: "true"
+      - key: ENABLE_SIM             # fault-injection routes (admin only). Leave off outside demos.
+        value: "false"
+      - key: PORT
+        value: "4000"

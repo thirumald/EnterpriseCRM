@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { fresh, q, one, pool, buildApp, minutes } from './helpers.ts';
+import { fresh, q, one, pool, startApi, minutes } from './helpers.ts';
 import * as hd from '../src/helpdesk.ts';
 import * as sla from '../src/slaService.ts';
 import * as al from '../src/alerts.ts';
@@ -8,7 +8,6 @@ import * as mon from '../src/monitoring.ts';
 import * as disc from '../src/discovery.ts';
 import { EdgeCollector } from '../src/collector.ts';
 import { injectFault, clearFault } from '../src/sim.ts';
-import type { Server } from 'node:http';
 
 let ids: any;
 before(async () => { ids = await fresh(); });
@@ -249,10 +248,11 @@ test('warranty expiry and renewal-risk scans feed the CRM (R13, R14)', async () 
 });
 
 test('HTTP API: email threading, API idempotency, account 360, topology, NOC dashboard', async () => {
-  const app = buildApp();
-  const server: Server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
-  const base = `http://127.0.0.1:${(server.address() as any).port}/api`;
-  const j = async (p: string, init?: any) => { const r = await fetch(base + p, { ...init, headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) }, body: init?.body ? JSON.stringify(init.body) : undefined }); return { status: r.status, body: await r.json() }; };
+  const { createUser } = await import('../src/auth.ts');
+  await createUser({ username: 'root', password: 'correct horse', role: 'admin' });
+  const api = await startApi();
+  const { cookie } = await api.login('root', 'correct horse');
+  const j = async (p: string, init?: any) => { const r = await api.call(p, { method: init?.method, body: init?.body, cookie, headers: init?.headers, key: (/^\/(inbound|v1|ingest)/.test(p) ? 'test-api-key' : undefined) }); return { status: r.status, body: r.body }; };
   try {
     const e1 = await j('/inbound/email', { method: 'POST', body: { from: 'wendy@acme.example', subject: 'Printer offline', body: 'help' } });
     assert.equal(e1.body.action, 'created'); assert.equal(e1.body.ticket.account_name, 'Acme Manufacturing'); assert.equal(e1.body.ticket.channel, 'email');
@@ -285,5 +285,5 @@ test('HTTP API: email threading, API idempotency, account 360, topology, NOC das
     assert.ok(subnets.body[0].total > 0);
     const dup = await j('/ipam/ips', { method: 'POST', body: { ip: '10.0.0.1', ci_id: ids.acmeErp } });
     assert.equal(dup.status, 409);
-  } finally { server.close(); }
+  } finally { api.close(); }
 });

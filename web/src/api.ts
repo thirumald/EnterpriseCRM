@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-let user = 'alice.agent';
-export const setUser = (u: string) => { user = u; };
 
 export async function api<T = any>(path: string, init?: { method?: string; body?: any }): Promise<T> {
   const res = await fetch('/api' + path, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),
-    headers: { 'content-type': 'application/json', 'x-user': user },
+    headers: { 'content-type': 'application/json' },
+    credentials: 'same-origin',
     body: init?.body ? JSON.stringify(init.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('auth-expired'));
   if (!res.ok) throw new Error(data.error ?? res.statusText);
   return data;
 }

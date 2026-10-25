@@ -3,10 +3,10 @@ import { api, useApi } from './api';
 import { Badge, Card, fmtDT, fmtTime } from './ui';
 
 export function Admin() {
-  const [tab, setTab] = useState<'rules' | 'sla' | 'activity' | 'notifications' | 'audit'>('rules');
+  const [tab, setTab] = useState<'rules' | 'users' | 'sla' | 'activity' | 'notifications' | 'audit'>('rules');
   return <div>
-    <div className="tabs">{(['rules', 'sla', 'activity', 'notifications', 'audit'] as const).map((t) => <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>{{ rules: 'Workflow rules', sla: 'SLA policies', activity: 'Rule executions', notifications: 'Notifications', audit: 'Audit log' }[t]}</button>)}</div>
-    {tab === 'rules' && <Rules />}{tab === 'sla' && <Sla />}{tab === 'activity' && <Exec />}{tab === 'notifications' && <Notes />}{tab === 'audit' && <Audit />}
+    <div className="tabs">{(['rules', 'users', 'sla', 'activity', 'notifications', 'audit'] as const).map((t) => <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>{{ rules: 'Workflow rules', users: 'Users & access', sla: 'SLA policies', activity: 'Rule executions', notifications: 'Notifications', audit: 'Audit log' }[t]}</button>)}</div>
+    {tab === 'rules' && <Rules />}{tab === 'users' && <Users />}{tab === 'sla' && <Sla />}{tab === 'activity' && <Exec />}{tab === 'notifications' && <Notes />}{tab === 'audit' && <Audit />}
   </div>;
 }
 function Rules() {
@@ -42,4 +42,26 @@ function Notes() {
 function Audit() {
   const a = useApi<any[]>('/audit');
   return <Card title="Audit log"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th></tr></thead><tbody>{a.data?.map((x) => <tr key={x.id}><td className="sm">{fmtDT(x.at)}</td><td>{x.actor}</td><td>{x.action}</td><td>{x.entity} {x.entity_id}</td></tr>)}</tbody></table></Card>;
+}
+
+const ROLES = ['admin', 'agent', 'engineer', 'account_manager', 'noc', 'customer'];
+function Users() {
+  const u = useApi<any[]>('/users'); const accounts = useApi<any[]>('/accounts');
+  const [f, setF] = useState<any>({ role: 'agent' }); const [err, setErr] = useState('');
+  return <div className="grid g2">
+    <Card title="Create user"><div className="col">
+      <label>Username<input value={f.username ?? ''} onChange={(e) => setF({ ...f, username: e.target.value })} /></label>
+      <label>Display name<input value={f.display_name ?? ''} onChange={(e) => setF({ ...f, display_name: e.target.value })} /></label>
+      <label>Password (min 8)<input type="password" value={f.password ?? ''} onChange={(e) => setF({ ...f, password: e.target.value })} /></label>
+      <label>Role<select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
+      {f.role === 'customer' && <label>Customer account<select onChange={(e) => setF({ ...f, account_id: Number(e.target.value) || null })}><option value="">—</option>{accounts.data?.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
+      {err && <div style={{ color: 'var(--crit)' }}>{err}</div>}
+      <button className="btn pri" onClick={async () => { try { setErr(''); await api('/users', { body: f }); setF({ role: 'agent' }); u.reload(); } catch (e: any) { setErr(e.message); } }}>Create</button>
+    </div></Card>
+    <Card title="Users"><table><thead><tr><th>User</th><th>Role</th><th>Last login</th><th></th></tr></thead><tbody>
+      {u.data?.map((x) => <tr key={x.id} style={{ opacity: x.active ? 1 : 0.5 }}><td><b>{x.username}</b><div className="muted sm">{x.display_name}{x.account_name ? ` · ${x.account_name}` : ''}</div></td><td><Badge v="info" text={x.role} /></td><td className="sm">{fmtDT(x.last_login)}</td>
+        <td style={{ whiteSpace: 'nowrap' }}><button className="btn" onClick={async () => { const p = prompt('New password (min 8 characters)'); if (p) { try { await api(`/users/${x.id}`, { method: 'PATCH', body: { password: p } }); } catch (e: any) { alert(e.message); } } }}>Reset pw</button>{' '}
+          <button className={`btn ${x.active ? 'dng' : ''}`} onClick={async () => { await api(`/users/${x.id}`, { method: 'PATCH', body: { active: !x.active } }); u.reload(); }}>{x.active ? 'Disable' : 'Enable'}</button></td></tr>)}
+    </tbody></table></Card>
+  </div>;
 }

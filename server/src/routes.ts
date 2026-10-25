@@ -10,16 +10,46 @@ import * as disc from './discovery.ts';
 import * as rt from './runtime.ts';
 import { activeFaults } from './sim.ts';
 import { priorityFor } from './sla.ts';
+import * as auth from './auth.ts';
 
 const wrap = (fn: (req: Request, res: Response) => Promise<any>) => (req: Request, res: Response, next: NextFunction) => fn(req, res).then((r) => { if (r !== undefined && !res.headersSent) res.json(r); }).catch(next);
-const actor = (req: Request) => String(req.header('x-user') ?? 'anonymous');
+const actor = (req: Request) => String((req as any).actor ?? 'anonymous');
 const id = (req: Request) => Number(req.params.id);
+const forUser = (req: Request, t: any) => (req as any).user?.role === 'customer' ? { id: t.id, number: t.number, subject: t.subject, status: t.status, priority: t.priority } : t;
 
 export function buildRouter() {
   const r = express.Router();
   r.get('/health', wrap(async () => ({ ok: true, time: new Date().toISOString() })));
   r.get('/events', sseHandler);
-  r.get('/meta', wrap(async () => ({
+  r.post('/auth/login', wrap(async (req) => {
+    const username = String(req.body?.username ?? '').toLowerCase().trim(), password = String(req.body?.password ?? '');
+    const key = `${req.ip}|${username}`;
+    if (auth.throttled(key)) return void req.res!.status(429).json({ error: 'too many attempts, try again in 15 minutes' });
+    const u = await one('SELECT * FROM users WHERE username=$1 AND active', [username]);
+    const ok = auth.verifyPassword(password, u?.password_hash ?? 'scrypt$00$00');   // constant-ish work for unknown users
+    if (!u || !ok) { auth.noteFail(key); return void req.res!.status(401).json({ error: 'invalid username or password' }); }
+    auth.clearFails(key);
+    await q('UPDATE users SET last_login=now() WHERE id=$1', [u.id]);
+    auth.setSession(req.res!, u.id);
+    await audit(u.username, 'login', 'user', u.id);
+    return { id: u.id, username: u.username, display_name: u.display_name, role: u.role, account_id: u.account_id };
+  }));
+  r.post('/auth/logout', wrap(async (req) => { req.res!.clearCookie('session', { path: '/' }); return { ok: true }; }));
+  r.get('/auth/me', wrap(async (req) => ({ ...(req as any).user, sim: auth.SIM_ENABLED })));
+  r.get('/users', wrap(async () => q('SELECT u.id,u.username,u.display_name,u.role,u.account_id,u.active,u.last_login,a.name account_name FROM users u LEFT JOIN accounts a ON a.id=u.account_id ORDER BY u.username')));
+  r.post('/users', wrap(async (req) => {
+    const b = req.body;
+    if (b.role === 'customer' && !b.account_id) return void req.res!.status(400).json({ error: 'customer users need an account' });
+    const u = await auth.createUser({ username: b.username, password: b.password, role: b.role, display_name: b.display_name, account_id: b.account_id ?? null });
+    await audit(actor(req), 'create', 'user', u.id, { role: b.role }); return u;
+  }));
+  r.patch('/users/:id', wrap(async (req) => {
+    const b = req.body;
+    if (b.password) { if (String(b.password).length < 8) return void req.res!.status(400).json({ error: 'password must be at least 8 characters' }); await q('UPDATE users SET password_hash=$2 WHERE id=$1', [id(req), auth.hashPassword(b.password)]); }
+    const u = await one('UPDATE users SET active=COALESCE($2,active), role=COALESCE($3,role) WHERE id=$1 RETURNING id,username,role,active', [id(req), b.active ?? null, b.role ?? null]);
+    await audit(actor(req), 'update', 'user', id(req), { active: b.active, role: b.role, password: !!b.password }); return u;
+  }));
+  r.get('/meta', wrap(async () => ({ sim: auth.SIM_ENABLED,
     statuses: hd.STATUSES, queues: Object.keys(hd.AGENTS), agents: hd.AGENTS, priorities: ['P1', 'P2', 'P3', 'P4'],
     ciClasses: ['Server', 'VM', 'Switch', 'Router', 'Firewall', 'Endpoint', 'IoT', 'UPS', 'Storage'],
     lifecycle: ['Planned', 'In Stock', 'Pending Review', 'Deployed', 'Maintenance', 'Degraded', 'Retired', 'Disposed'] })));
@@ -64,6 +94,9 @@ export function buildRouter() {
       round(avg(csat)::numeric,2)::float csat_avg
       FROM tickets WHERE account_id=$1 AND created_at > now()-interval '30 days'`, [aid]);
     const attainment = stats.total_30d ? Math.round(100 * (1 - stats.breached_30d / stats.total_30d)) : 100;
+    if ((req as any).user?.role === 'customer')   // customers never see contract values, pipeline, internal notes or raw alerts
+      return { account: { id: account.id, name: account.name, tier: account.tier }, contacts: [], contracts: [], alerts: [], opportunities: [], activities: [], children: [], sites: [],
+        assets: assets.map((a: any) => ({ id: a.id, name: a.name, ci_class: a.ci_class, state: a.state })), tickets, stats: { ...stats, sla_attainment: attainment } };
     return { account, contacts, contracts, assets, tickets, alerts, opportunities, activities, children, sites, stats: { ...stats, sla_attainment: attainment } };
   }));
   r.post('/accounts/:id/contacts', wrap(async (req) => one('INSERT INTO contacts(account_id,name,email,phone,role) VALUES ($1,$2,$3,$4,$5) RETURNING *', [id(req), req.body.name, req.body.email, req.body.phone ?? null, req.body.role ?? null])));
@@ -91,7 +124,8 @@ export function buildRouter() {
 
   // ---------------- Help Desk ----------------
   r.get('/tickets', wrap(async (req) => {
-    const f = req.query as Record<string, string>;
+    const f = { ...(req.query as Record<string, string>) };
+    if ((req as any).user?.role === 'customer') { f.account_id = String((req as any).user.account_id); delete f.assignee; }   // enforced here, not in middleware
     const w: string[] = []; const p: any[] = [];
     const add = (cond: string, v: any) => { p.push(v); w.push(cond.replaceAll('?', `$${p.length}`)); };
     if (f.status === 'active') w.push(`t.status NOT IN ('Resolved','Closed')`); else if (f.status) add('t.status = ?', f.status);
@@ -115,7 +149,7 @@ export function buildRouter() {
     const b = req.body;
     if (!b.subject) return void req.res!.status(400).json({ error: 'subject required' });
     const priority = b.priority ?? (b.urgency && b.impact ? priorityFor(b.urgency, b.impact) : 'P3');
-    return hd.createTicket({ ...b, priority, actor: actor(req) });
+    return forUser(req, await hd.createTicket({ ...b, priority, actor: actor(req) }));
   }));
   // Public API channel with idempotency
   r.post('/v1/tickets', wrap(async (req) => {
@@ -141,15 +175,20 @@ export function buildRouter() {
       t.subject ? q(`SELECT id,title FROM kb_articles WHERE title ILIKE ANY($1) OR $2 && tags LIMIT 5`, [t.subject.split(/\W+/).filter((w: string) => w.length > 4).map((w: string) => `%${w}%`), (t.ci_class ? [String(t.ci_class).toLowerCase()] : [])]) : [],
       t.ci_id ? q(`SELECT id,number,subject,status FROM tickets WHERE ci_id=$1 AND id<>$2 ORDER BY created_at DESC LIMIT 5`, [t.ci_id, t.id]) : [],
     ]);
+    if ((req as any).user?.role === 'customer') {
+      const visible = new Set(['created', 'status', 'agent_reply', 'customer_reply', 'csat']);
+      return { id: t.id, number: t.number, subject: t.subject, description: t.description, status: t.status, priority: t.priority, created_at: t.created_at, timers: [],
+        events: events.filter((e: any) => visible.has(e.type)).map((e: any) => ({ id: e.id, type: e.type, actor: e.type === 'agent_reply' ? 'Support' : e.actor, body: e.body, at: e.at })) };
+    }
     return { ...t, events, alerts, children, kb, related };
   }));
-  r.post('/tickets/:id/reply', wrap(async (req) => { await hd.reply(id(req), req.body.kind ?? 'agent', actor(req), req.body.body); return hd.getTicket(id(req)); }));
+  r.post('/tickets/:id/reply', wrap(async (req) => { await hd.reply(id(req), req.body.kind ?? 'agent', actor(req), req.body.body); return forUser(req, await hd.getTicket(id(req))); }));
   r.post('/tickets/:id/status', wrap(async (req) => hd.setStatus(id(req), req.body.status, actor(req))));
   r.post('/tickets/:id/priority', wrap(async (req) => hd.setPriority(id(req), req.body.priority, actor(req))));
   r.post('/tickets/:id/assign', wrap(async (req) => hd.assign(id(req), req.body.assignee, req.body.queue, actor(req))));
   r.post('/tickets/:id/ack', wrap(async (req) => { await sla.markMet(id(req), 'response'); await hd.addEvent(id(req), 'ack', actor(req), 'Acknowledged'); const t = await hd.getTicket(id(req)); if (t.status === 'New') return hd.setStatus(id(req), 'Open', actor(req)); return t; }));
   r.post('/tickets/:id/merge', wrap(async (req) => hd.mergeTickets(id(req), Number(req.body.target_id), actor(req))));
-  r.post('/tickets/:id/csat', wrap(async (req) => hd.submitCsat(id(req), Number(req.body.score))));
+  r.post('/tickets/:id/csat', wrap(async (req) => { const s = Number(req.body.score); if (!(s >= 1 && s <= 5)) return void req.res!.status(400).json({ error: 'score must be 1-5' }); return forUser(req, await hd.submitCsat(id(req), s)); }));
   r.get('/kb', wrap(async (req) => q(`SELECT * FROM kb_articles WHERE $1='' OR title ILIKE '%'||$1||'%' OR body ILIKE '%'||$1||'%' ORDER BY id`, [String(req.query.q ?? '')])));
   r.post('/kb', wrap(async (req) => one('INSERT INTO kb_articles(title,body,tags) VALUES ($1,$2,$3) RETURNING *', [req.body.title, req.body.body, req.body.tags ?? []])));
   r.post('/admin/sla-tick', wrap(async (req) => { await sla.slaTick(req.body?.now ? new Date(req.body.now) : new Date()); return { ok: true }; }));

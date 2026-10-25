@@ -12,5 +12,11 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/enterprisecrm
       PORT: "4000"
+      NODE_ENV: production
+      SESSION_SECRET: change-me-to-a-long-random-string-at-least-32-chars
+      ADMIN_PASSWORD: change-me-now
+      API_KEY: change-me-api-key
+      DEMO_PASSWORD: demo-change-me
+      ENABLE_SIM: "true"
     ports: ["4000:4000", "5514:5514/udp"]
 volumes: { pgdata: {} }

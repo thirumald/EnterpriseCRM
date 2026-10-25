@@ -8,7 +8,7 @@ pg.types.setTypeParser(20, (v) => Number(v));
 pg.types.setTypeParser(1700, (v) => Number(v));
 
 export const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5432/enterprisecrm';
-export const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 10 });
+export const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 10, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
 
 export async function q<T = any>(text: string, params: any[] = []): Promise<T[]> {
   return (await pool.query(text, params)).rows as T[];

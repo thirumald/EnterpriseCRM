@@ -5,12 +5,12 @@ import { Badge, Card, Drawer, Empty, fmtDate, fmtDT, fmtTime, LineChart, Modal, 
 
 const TABS = ['Alerts', 'CMDB', 'Dependency map', 'IPAM', 'Discovery', 'Maintenance', 'Simulator'] as const;
 
-export function Engineer({ openTicket, initialCi }: { openTicket: (id: number) => void; initialCi?: number | null }) {
+export function Engineer({ openTicket, initialCi, sim }: { openTicket: (id: number) => void; initialCi?: number | null; sim: boolean }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>(initialCi ? 'CMDB' : 'Alerts');
   const [ci, setCi] = useState<number | null>(initialCi ?? null);
   return (
     <div>
-      <div className="tabs">{TABS.map((t) => <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>{t}</button>)}</div>
+      <div className="tabs">{TABS.filter((t) => sim || t !== 'Simulator').map((t) => <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>{t}</button>)}</div>
       {tab === 'Alerts' && <Alerts openTicket={openTicket} openCi={setCi} />}
       {tab === 'CMDB' && <Cmdb openCi={setCi} />}
       {tab === 'Dependency map' && <DepMap openCi={setCi} />}

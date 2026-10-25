@@ -16,6 +16,21 @@ Sub DC (edge)                                    Main DC
 └─────────────────────────────┘                  └──────────────────────────────────────────┘
 ```
 
+## Sign-in and roles
+
+| Role | Can use | Can change |
+|---|---|---|
+| `admin` | everything, incl. Users & access, rules, audit | everything |
+| `agent` | NOC, Help Desk, CRM (read) | tickets, KB, alert→ticket |
+| `engineer` | NOC, Help Desk, Infrastructure | CMDB, IPAM, discovery, maintenance, thresholds, tickets |
+| `account_manager` | NOC, CRM, Help Desk (read) | accounts, contracts, opportunities |
+| `noc` | NOC, Help Desk (read) | alert ack/ticket from alerts |
+| `customer` | Portal only, own account | own tickets (create/reply/CSAT); sees no contract values, alerts or internal notes |
+
+First start creates `admin` (password from `ADMIN_PASSWORD`, or a random one printed once in the log). With `SEED_DEMO=true` it also creates `alice.agent`, `nina.network`, `mia.manager`, `noc.operator` and customer `wendy@acme.example`
+(password `DEMO_PASSWORD`; outside production the default is `demo1234`). Machine callers (`/api/ingest/*`, `/api/inbound/email`, `/api/v1/tickets`) send `x-api-key: $API_KEY`.
+In production `SESSION_SECRET` (32+ chars) is mandatory and the server refuses to start without it.
+
 ## Quick start
 
 Requires Node 22+ and PostgreSQL 16+ (TimescaleDB optional - hypertables are enabled automatically if the extension exists).
@@ -29,7 +44,7 @@ npm start              # applies db/schema.sql, seeds demo data on first run, se
 # open http://localhost:4000
 ```
 
-Dev mode: `npm run dev:server` and `npm run dev:web` (Vite on :5173 proxies `/api`). `docker compose up` is provided (TimescaleDB image) but was not run when this was authored.
+Environment variables are listed in `.env.example`. Dev mode: `npm run dev:server` and `npm run dev:web` (Vite on :5173 proxies `/api`). `docker compose up` is provided (TimescaleDB image) but was not run when this was authored.
 
 Tests (need a scratch Postgres at `postgres://postgres@localhost:5433/enterprisecrm_test`, or set `DATABASE_URL`; the suite **drops and recreates all tables** in that database):
 
@@ -37,9 +52,21 @@ Tests (need a scratch Postgres at `postgres://postgres@localhost:5433/enterprise
 npm test               # 26 tests: SLA calendar math + the end-to-end alert→ticket→SLA pipeline against real PostgreSQL
 ```
 
+## Deployment (GitHub Actions → Render)
+
+`.github/workflows/deploy.yml` runs on every push to `main`: **tests** (type-check, build, 33 tests on a Postgres service) → **build and push the Docker image to GHCR** → **trigger the Render deploy hook** → wait for `/api/health`.
+`render.yaml` describes the Render side (Docker web service + managed PostgreSQL 16, generated secrets). One-time setup, which needs your Render and GitHub accounts:
+
+1. Render → **New → Blueprint** → select this repo. It creates `enterprisecrm` and `enterprisecrm-db`. Confirm the plan names in the dashboard (they change over time).
+2. Render service → **Settings → Deploy Hook**: copy the URL.
+3. GitHub repo → **Settings → Secrets and variables → Actions**: add secret `RENDER_DEPLOY_HOOK_URL` (the hook URL) and, optionally, variable `APP_URL` (e.g. `https://enterprisecrm.onrender.com`) to enable the post-deploy health check. Create a GitHub Environment named `production` (optionally with required reviewers for manual approval).
+4. Push to `main` (or run the workflow manually). Read the generated `ADMIN_PASSWORD`/`DEMO_PASSWORD`/`API_KEY` from the Render service's Environment tab.
+
+Without the secret the workflow still tests and publishes the image, then ends with a warning instead of deploying. The collectors and schedulers run inside the web process, so run **one** instance. The workflows have not been executed yet (they need the secrets above).
+
 ## Try the whole loop (2 minutes)
 
-1. **Infrastructure → Simulator**: pick `SW-A1` (shared core switch) → *Device down* → Inject.
+1. (Local/dev, or `ENABLE_SIM=true` as admin) **Infrastructure → Simulator**: pick `SW-A1` (shared core switch) → *Device down* → Inject.
 2. Within a few seconds the Sub/Main-DC collector sees 3 failed polls, ships the alert, and the **NOC dashboard** shows it in the live feed and topology.
 3. **Help Desk**: one P1 root-cause ticket for `SW-A1`, plus an *[Impact]* child ticket for **each** affected customer with that customer's own contract SLA (Platinum 15 min vs Gold 30 min). Downstream servers go `UNKNOWN`, not `DOWN`, and their alerts attach to the root cause instead of making noise.
 4. Cut a Sub-DC WAN (Simulator): the collector keeps alerting locally and buffers; the site goes `UNKNOWN` with one collector incident; restore the WAN and the backlog replays in order.
@@ -58,7 +85,7 @@ npm test               # 26 tests: SLA calendar math + the end-to-end alert→ti
 | Monitoring | Edge collector with local thresholds + hysteresis, window aggregation, store-and-forward, idempotent ingest, heartbeats/collector-offline handling, syslog UDP listener, IoT/MQTT-style ingest + staleness, maintenance windows, dedupe, topology suppression, alert storms | Device reads are **simulated** (`server/src/sim.ts`) except an optional real TCP probe; **no real SNMP/WMI/SSH/agent drivers or MQTT broker client** - they plug in behind `readMetric`/`ingestIot` |
 | Automation | 19 rules (R1-R20, see Administration → Workflow rules), toggleable with parameters, execution log | Notifications are *recorded*, not delivered (email/SMS/pager adapters not wired) |
 | Frontend | NOC dashboard (site map, topology, live ticker, SLA board, top-N, collector fabric, IoT, wall mode), Help Desk, Infrastructure, CRM, Customer portal, Admin | |
-| Security | - | **No authentication/authorization or tenant isolation yet**; the UI sends an `x-user` header for the audit trail only. Do not expose to a network as is |
+| Security | Login (scrypt passwords, signed HttpOnly session cookie, 12 h expiry, login throttling), 6 roles with a route-level permission matrix, customer users locked to their own account with internal data stripped, API-key auth for collectors/email gateway/public API, security headers, simulator routes off in production, audit log | No SSO/MFA, no per-tenant row-level isolation (single-tenant), UDP syslog is unauthenticated (restrict by network), sessions are stateless (no server-side revocation other than disabling the user) |
 
 ## Mapping to the target architecture
 

@@ -131,6 +131,61 @@ window.makeSeed = function () {
     { id: 'kb10', title: 'ANPR camera events delayed or missing', cat: 'Application', views: 154, helpful: 85, body: 'Check the camera gateway queue, then the ANPR engine CPU and the GIS database latency. Events are buffered at the edge for up to 24 hours, so a delay is usually a processing backlog rather than data loss.' },
   ];
 
+
+  const cam = (id, name, city, type, analytics, status, res, site, ret, rec) => ({ id, name, city, type, analytics, status, res, site, retention: ret, rec: rec || 'continuous' });
+  const cameras = [
+    cam('c1', 'TIA-SKA-01 Skanderbeg Square', 'Tirana', 'PTZ', ['Crowd', 'Intrusion'], 'online', '4K', 's1', 30),
+    cam('c2', 'TIA-RNG-02 Ring Road East', 'Tirana', 'ANPR', ['ANPR', 'Collision'], 'online', '1080p', 's1', 30),
+    cam('c3', 'TIA-RNG-03 Ring Road West', 'Tirana', 'ANPR', ['ANPR'], 'degraded', '1080p', 's1', 30),
+    cam('c4', 'TIA-BLV-04 Blloku Crossing', 'Tirana', 'Fixed', ['Crowd'], 'online', '1080p', 's1', 30),
+    cam('c5', 'TIA-PRK-05 Grand Park Entrance', 'Tirana', 'Panoramic', ['Intrusion', 'Crowd'], 'online', '4K', 's1', 14, 'event'),
+    cam('c6', 'TIA-STN-06 Central Bus Terminal', 'Tirana', 'Fixed', ['Crowd', 'Smoke'], 'online', '1080p', 's1', 30),
+    cam('c16', 'TIA-HWY-07 Tirana-Durrës Highway', 'Tirana', 'ANPR', ['ANPR', 'Collision'], 'online', '1080p', 's1', 30),
+    cam('c7', 'DUR-PRT-01 Port Gate A', 'Durrës', 'ANPR', ['ANPR'], 'online', '1080p', 's2', 60),
+    cam('c8', 'DUR-PRT-02 Container Yard', 'Durrës', 'Thermal', ['Intrusion', 'Smoke'], 'online', '1080p', 's2', 60),
+    cam('c9', 'DUR-BCH-03 Seafront Promenade', 'Durrës', 'PTZ', ['Crowd'], 'online', '4K', 's2', 14),
+    cam('c10', 'VLO-SEA-01 Vlorë Waterfront', 'Vlorë', 'PTZ', ['Crowd'], 'offline', '4K', 's3', 14),
+    cam('c11', 'VLO-IND-02 Independence Square', 'Vlorë', 'Fixed', ['Intrusion'], 'online', '1080p', 's3', 14),
+    cam('c12', 'KOR-BZR-01 Old Bazaar', 'Korçë', 'Fixed', ['Crowd'], 'online', '1080p', 's3', 14),
+    cam('c13', 'SHK-ROZ-01 Rozafa Road', 'Shkodër', 'ANPR', ['ANPR'], 'online', '1080p', 's4', 30),
+    cam('c14', 'SHK-LAK-02 Lake Promenade', 'Shkodër', 'Panoramic', ['Crowd', 'Smoke'], 'online', '4K', 's4', 14),
+    cam('c15', 'SHK-CTR-03 Pedestrian Centre', 'Shkodër', 'Fixed', ['Crowd'], 'online', '1080p', 's4', 14),
+  ];
+  const un = (id, name, kind, city, status) => ({ id, name, kind, city, status });
+  const units = [
+    un('u1', 'Police Patrol T-12', 'Police', 'Tirana', 'dispatched'), un('u2', 'Police Patrol D-04', 'Police', 'Durrës', 'available'),
+    un('u3', 'Ambulance A-07', 'Ambulance', 'Tirana', 'dispatched'), un('u4', 'Ambulance V-02', 'Ambulance', 'Vlorë', 'available'),
+    un('u5', 'Fire Engine D-01', 'Fire', 'Durrës', 'dispatched'), un('u6', 'Fire Engine T-03', 'Fire', 'Tirana', 'available'),
+    un('u7', 'Municipal Crew S-05', 'Municipal crew', 'Shkodër', 'available'), un('u8', 'Lighting Crew V-01', 'Municipal crew', 'Vlorë', 'available'),
+    un('u9', 'Traffic Unit T-09', 'Traffic', 'Tirana', 'available'), un('u10', 'Police Patrol S-02', 'Police', 'Shkodër', 'available'),
+  ];
+  const inc = (id, type, sev, city, location, camera, source, min, status, extra) => Object.assign({ id, type, sev, city, location, camera, source, at: ago(min), status, ackAt: null, units: [], ticket: null, sopDone: 0, timeline: [{ at: ago(min), by: 'System', text: 'Incident created from ' + source }] }, extra || {});
+  const incidents = [
+    inc(1001, 'ANPR watchlist hit', 'high', 'Tirana', 'Ring Road East, northbound', 'c2', 'VMS analytics', 6, 'new'),
+    inc(1002, 'Crowd density above limit', 'medium', 'Tirana', 'Skanderbeg Square', 'c1', 'VMS analytics', 25, 'acknowledged', { ackAt: ago(22), sopDone: 2, timeline: [{ at: ago(25), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(22), by: 'Genti Dervishi', text: 'Acknowledged and monitoring on the video wall' }] }),
+    inc(1003, 'Smoke detected', 'critical', 'Durrës', 'Container yard, row C', 'c8', 'VMS analytics', 12, 'dispatched', { ackAt: ago(11), units: ['u5'], sopDone: 2, timeline: [{ at: ago(12), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(11), by: 'Genti Dervishi', text: 'Acknowledged' }, { at: ago(10), by: 'Genti Dervishi', text: 'Dispatched Fire Engine D-01' }] }),
+    inc(1004, 'Street light cluster fault', 'low', 'Vlorë', 'Vlorë seafront, 14 luminaires', null, 'IoT sensor', 70, 'new'),
+    inc(1005, 'Traffic collision', 'high', 'Tirana', 'Tirana-Durrës highway km 8', 'c16', 'VMS analytics', 18, 'dispatched', { ackAt: ago(17), units: ['u1', 'u3'], sopDone: 3, timeline: [{ at: ago(18), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(17), by: 'Genti Dervishi', text: 'Acknowledged' }, { at: ago(15), by: 'Genti Dervishi', text: 'Dispatched Police Patrol T-12 and Ambulance A-07' }] }),
+    inc(1006, 'Smart bin overflow', 'low', 'Shkodër', 'Pedestrian centre, bin cluster 3', null, 'IoT sensor', 300, 'resolved', { ackAt: ago(290), sopDone: 3, timeline: [{ at: ago(300), by: 'System', text: 'Incident created from IoT sensor' }, { at: ago(240), by: 'Genti Dervishi', text: 'Crew emptied the bins. Resolved.' }] }),
+  ];
+  const vmsEvents = [
+    { at: ago(6), camera: 'c2', kind: 'ANPR', text: 'Watchlist plate matched (confidence 94%)', incident: 1001 },
+    { at: ago(18), camera: 'c16', kind: 'Collision', text: 'Two-vehicle collision detected', incident: 1005 },
+    { at: ago(25), camera: 'c1', kind: 'Crowd', text: 'Crowd density 5.2 persons per m2', incident: 1002 },
+    { at: ago(12), camera: 'c8', kind: 'Smoke', text: 'Smoke plume detected (confidence 91%)', incident: 1003 },
+    { at: ago(45), camera: 'c4', kind: 'Crowd', text: 'Crowd density 2.1 persons per m2', incident: null },
+  ];
+  const domains = [
+    { id: 'traffic', name: 'Smart traffic', icon: 'activity', desc: 'Adaptive signals, ANPR and journey-time sensors', metric: 'Avg. journey time', value: '-14%', cities: { Tirana: [212, 4], Durrës: [64, 1], Vlorë: [38, 0], Shkodër: [41, 0] } },
+    { id: 'lighting', name: 'Smart lighting', icon: 'sun', desc: 'Dimmable LED luminaires with fault reporting', metric: 'Energy saved', value: '-38%', cities: { Tirana: [4200, 52], Durrës: [980, 11], Vlorë: [1150, 28], Shkodër: [860, 6], Korçë: [420, 3] } },
+    { id: 'waste', name: 'Smart waste', icon: 'trash', desc: 'Fill-level sensors and route optimisation', metric: 'Collections avoided', value: '22%', cities: { Tirana: [820, 9], Durrës: [210, 2], Shkodër: [190, 1] } },
+    { id: 'environment', name: 'Environment', icon: 'globe', desc: 'Air quality, noise and weather stations', metric: 'PM2.5 city average', value: '14 ug/m3', cities: { Tirana: [64, 2], Durrës: [22, 0], Vlorë: [18, 1], Shkodër: [16, 0], Korçë: [12, 0] } },
+    { id: 'parking', name: 'Smart parking', icon: 'mapPin', desc: 'In-ground bay sensors and guidance signs', metric: 'Search time', value: '-31%', cities: { Tirana: [1450, 18], Durrës: [320, 4] } },
+    { id: 'wifi', name: 'Public Wi-Fi', icon: 'wifi', desc: 'City-wide access points with usage analytics', metric: 'Daily sessions', value: '48,200', cities: { Tirana: [310, 5], Durrës: [96, 1], Vlorë: [88, 2], Shkodër: [72, 0], Korçë: [40, 0] } },
+    { id: 'metering', name: 'Smart metering', icon: 'zap', desc: 'AMI meters and grid edge sensors', metric: 'Meters reporting', value: '98.6%', cities: { Tirana: [26000, 240], Durrës: [7400, 70], Shkodër: [5200, 38] } },
+    { id: 'safety', name: 'Public safety', icon: 'camera', desc: 'Video analytics and sensors feeding the command centre', metric: 'Incidents handled today', value: '37', cities: { Tirana: [7, 1], Durrës: [3, 0], Vlorë: [2, 1], Shkodër: [3, 0], Korçë: [1, 0] } },
+  ];
+
   const rules = [
     ['R1', 'Critical alert creates a P1 ticket', 'Alerts', 'Opens a P1 ticket automatically and links the alert, asset and account.', true, true],
     ['R2', 'Persistent warning creates a P3 ticket', 'Alerts', 'A warning that stays open for 15 minutes creates a P3 ticket.', true, false],
@@ -152,6 +207,8 @@ window.makeSeed = function () {
     ['R18', 'Subnet utilisation above 85%', 'IPAM', 'Alerts capacity planning before a subnet runs out.', true, false],
     ['R19', 'Gold account priority bump', 'Service', 'New tickets from Gold accounts are raised one priority level (max P1).', false, true],
     ['R20', 'Inbound email creates and threads tickets', 'Service', 'Creates a ticket or appends a reply by matching the reference in the subject.', true, false],
+    ['R21', 'Analytics event opens a PSIM incident', 'Smart city', 'Camera analytics and IoT thresholds open an incident in the command centre with the matching SOP.', true, true],
+    ['R22', 'Infrastructure incident raises a help desk ticket', 'Smart city', 'Street-light, waste and sensor faults also create a ticket so field crews are tracked in the ITSM.', true, true],
   ].map((r) => ({ id: r[0], name: r[1], cat: r[2], desc: r[3], enabled: r[4], live: r[5], hits: r[4] ? 10 + Math.floor(Math.random() * 90) : 0 }));
 
   const users = [
@@ -173,8 +230,8 @@ window.makeSeed = function () {
   ];
 
   return {
-    now, sites, accounts, contacts, assets, subnets, tickets, alerts, deals, contracts, kb, rules, users, audit,
+    now, sites, accounts, contacts, assets, subnets, tickets, alerts, deals, contracts, kb, rules, users, audit, cameras, units, incidents, vmsEvents, domains,
     volume: [14, 18, 12, 21, 17, 9, 7, 16, 22, 19, 15, 24, 18, 12],
-    seq: { ticket: 1044, alert: 9, deal: 10, account: 9, asset: 19, user: 9, contact: 11, contract: 9 },
+    seq: { ticket: 1044, alert: 9, deal: 10, account: 9, asset: 19, user: 9, contact: 11, contract: 9, incident: 1007 },
   };
 };

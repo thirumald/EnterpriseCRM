@@ -1,7 +1,7 @@
 'use strict';
 /* Core: state, helpers, shell (sidebar/topbar), routing, overlays, global event handling. Views live in views.js. */
 (function () {
-  const KEY = 'presight-nexus-v2';
+  const KEY = 'presight-nexus-v3';
   const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight Nexus', DEV: 'Thirumal D' });
 
   /* ---------- helpers ---------- */
@@ -43,13 +43,13 @@
   APP.audit = (what, target) => { D.audit.unshift({ at: Date.now(), who: roleUser().name, what, target: target || '' }); if (D.audit.length > 300) D.audit.length = 300; };
 
   /* ---------- roles ---------- */
-  const ALLV = ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'portal', 'accounts', 'pipeline', 'contracts', 'cmdb', 'ipam', 'automation', 'reports', 'users', 'audit', 'settings'];
+  const ALLV = ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'portal', 'accounts', 'pipeline', 'contracts', 'cmdb', 'ipam', 'automation', 'reports', 'users', 'audit', 'settings'];
   const ROLES = {
     admin: { label: 'Administrator', views: ALLV, can: ['*'], user: 'Ardit Basha' },
-    agent: { label: 'Service agent', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: 'Elira Kola' },
-    engineer: { label: 'Engineer', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules'], user: 'Besnik Shehu' },
-    account_manager: { label: 'Account manager', views: ['dashboard', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: 'Mira Hoxha' },
-    noc: { label: 'NOC operator', views: ['dashboard', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert'], user: 'Genti Dervishi' },
+    agent: { label: 'Service agent', views: ['dashboard', 'psim', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: 'Elira Kola' },
+    engineer: { label: 'Engineer', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules', 'vms'], user: 'Besnik Shehu' },
+    account_manager: { label: 'Account manager', views: ['dashboard', 'intellicity', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: 'Mira Hoxha' },
+    noc: { label: 'NOC operator', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert', 'psim', 'vms'], user: 'Genti Dervishi' },
     customer: { label: 'Customer (portal)', views: ['portal', 'kb', 'settings'], can: ['portal'], user: 'Anila Koci' },
   };
   APP.ROLES = ROLES;
@@ -62,6 +62,7 @@
   /* ---------- navigation ---------- */
   const NAV = [
     ['Overview', [['dashboard', 'Dashboard', 'dashboard']]],
+    ['Smart city', [['psim', 'Command centre (PSIM)', 'siren'], ['vms', 'Video management (VMS)', 'camera'], ['intellicity', 'Intelli City platform', 'city']]],
     ['Operations', [['noc', 'NOC & alerts', 'radar'], ['monitoring', 'Monitoring', 'activity'], ['topology', 'Topology', 'share']]],
     ['Service', [['tickets', 'Help desk', 'ticket'], ['kb', 'Knowledge base', 'book'], ['portal', 'Customer portal', 'globe']]],
     ['CRM', [['accounts', 'Accounts', 'building'], ['pipeline', 'Pipeline', 'funnel'], ['contracts', 'Contracts', 'file']]],

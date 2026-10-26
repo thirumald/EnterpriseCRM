@@ -49,5 +49,10 @@ window.ICONS = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
   mapPin: '<path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  camera: '<path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/>',
+  siren: '<path d="M6 18v-5a6 6 0 0 1 12 0v5M4 18h16v3H4zM12 3v2M4.5 6.5L6 8M19.5 6.5L18 8"/>',
+  map: '<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/>',
+  city: '<path d="M3 21V9l6-3v15M9 21V4l7 3v14M16 21v-9l5 2v7M2 21h20M12 9h1M12 13h1M6 12h1M6 16h1M18 16h1"/>',
+  trash2: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5M3 17.5l9 5 9-5" opacity=".6"/>',
 };

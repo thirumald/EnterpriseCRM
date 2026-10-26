@@ -452,8 +452,8 @@
      ==================================================================== */
   V.automation = function () {
     const d = D(), cats = [...new Set(d.rules.map((r) => r.cat))];
-    return head('Automation rules', 'Twenty rules wire alerts, tickets, SLAs, CRM and CMDB together', `<button class="btn" data-a="simAlert" data-sev="critical" ${A.dis('alert')}>${ic('zap', 14)}Test with a critical alert</button>`) +
-      `<div class="card" style="margin-bottom:14px;background:var(--info-soft);box-shadow:none">${ic('zap', 16)} Rules marked <b>Live in demo</b> really change what happens when you simulate alerts or create tickets (R1 auto-ticket, R3 de-duplication, R4 correlation, R5 maintenance, R19 Gold bump). The others are shown as configuration only in this static preview.</div>` +
+    return head('Automation rules', d.rules.length + ' rules wire alerts, incidents, tickets, SLAs, CRM and CMDB together', `<button class="btn" data-a="simAlert" data-sev="critical" ${A.dis('alert')}>${ic('zap', 14)}Test with a critical alert</button>`) +
+      `<div class="card" style="margin-bottom:14px;background:var(--info-soft);box-shadow:none">${ic('zap', 16)} Rules marked <b>Live in demo</b> really change what happens when you simulate alerts or create tickets (R1 auto-ticket, R3 de-duplication, R4 correlation, R5 maintenance, R19 Gold bump, R21 and R22 for the command centre). The others are shown as configuration only in this static preview.</div>` +
       cats.map((c) => `<h3 style="margin:18px 0 8px">${e(c)}</h3><div class="grid g2">${d.rules.filter((r) => r.cat === c).map((r) => `<div class="card"><div class="row"><b>${e(r.id)}</b><b class="grow" style="flex:1">${e(r.name)}</b><label class="switch" aria-label="Toggle ${e(r.id)}"><input type="checkbox" data-toggle="toggleRule" data-id="${r.id}" ${r.enabled ? 'checked' : ''} ${A.dis('rules')}><span></span></label></div><div class="muted small" style="margin:6px 0">${e(r.desc)}</div><div class="row">${r.live ? chip('Live in demo', 'info') : chip('Config only', '')}<span class="sp"></span><span class="muted small">${r.hits} executions</span></div></div>`).join('')}</div>`).join('');
   };
   ACT.toggleRule = (t) => { if (!A.guard('rules')) { A.render(); return; } const r = D().rules.find((x) => x.id === t.dataset.id); r.enabled = t.checked; A.commit((r.enabled ? 'Enabled' : 'Disabled') + ' rule ' + r.id, r.name); };
@@ -507,6 +507,8 @@
   ACT.exportJson = () => download('presight-nexus-demo.json', JSON.stringify(D(), null, 2), 'application/json');
   ACT.resetDemo = () => { if (confirm('Reset all demo data to the original sample?')) A.reset(); };
 
+  A.createTicket = createTicket; A.ui2 = { head, kpi, chip, sevChip, barc, opts, fv, tabs, curTab, empty, tbl, field, dl, donut, legend, hbars, spark, assetLink, csv, download, healthCls };
+
   /* deep links such as #/tickets/1043 open the matching drawer */
-  A.routeArg = (route, arg) => { const map = { tickets: 'ticket', accounts: 'account', cmdb: 'asset', kb: 'kb', ipam: 'subnet' }; if (map[route]) A.openDrawer(map[route], arg); };
+  A.routeArg = (route, arg) => { const map = { tickets: 'ticket', accounts: 'account', cmdb: 'asset', kb: 'kb', ipam: 'subnet', psim: 'incident', vms: 'camera' }; if (map[route]) A.openDrawer(map[route], arg); };
 })();

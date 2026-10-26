@@ -34,15 +34,35 @@
   const active = () => D().incidents.filter((x) => x.status !== 'resolved');
   const camDot = (c) => (c.status === 'online' ? 'var(--ok)' : c.status === 'degraded' ? 'var(--warn)' : 'var(--crit)');
 
-  /* ---------- simulated video tile ---------- */
+  /* ---------- video tiles: looping MP4 clips (media/*.mp4), pooled so they keep playing across re-renders ---------- */
+  const sceneOf = (c) => (c.type === 'ANPR' ? 'road' : /bus|stn/i.test(c.name) ? 'terminal' : c.type === 'Thermal' || /PRT/.test(c.name) ? 'port' : /BCH|SEA|LAK/.test(c.name) ? 'promenade' : 'plaza');
+  const VP = {}, clock = () => new Date().toLocaleTimeString('en-GB');
+  function vidFor(key, c) {
+    let v = VP[key]; if (v) return v;
+    const h = hash(c.id), src = (window.VIDEO_SOURCES && window.VIDEO_SOURCES[c.id]) || 'media/' + sceneOf(c) + '.mp4';
+    v = document.createElement('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('aria-hidden', 'true'); v.disablePictureInPicture = true;
+    v.className = 'vid v' + (h % 4); v.src = src; v.playbackRate = 0.92 + (h % 17) / 100;
+    v.addEventListener('loadedmetadata', () => { try { v.currentTime = (h % 1500) / 100; } catch (_) { /* not seekable yet */ } });
+    v.addEventListener('error', () => { v.remove(); });
+    VP[key] = v; return v;
+  }
+  function attachVideos() {
+    document.querySelectorAll('.feed[data-key]').forEach((el) => {
+      if (el.classList.contains('off')) return;
+      const c = cam(el.dataset.cam); if (!c) return; const v = vidFor(el.dataset.key, c), slot = el.querySelector('.vslot');
+      if (slot && v.parentNode !== slot) slot.appendChild(v);
+      if (v.paused && v.isConnected) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+    });
+    Object.keys(VP).forEach((k) => { const v = VP[k]; if (!v.isConnected && !v.paused) v.pause(); });
+  }
+  setInterval(() => { const t = clock(); document.querySelectorAll('.feed .ts').forEach((n) => { n.textContent = t; }); }, 1000);
   function feed(c, opt) {
     opt = opt || {};
-    const off = c.status === 'offline', h = hash(c.id) % 360, d = '-' + (hash(c.id) % 9) + 's';
-    const t = new Date().toISOString().slice(11, 19);
-    return `<div class="feed ${off ? 'off' : ''} ${opt.big ? 'big' : ''}" style="--h:${h}" ${opt.noclick ? '' : `data-a="openCamera" data-id="${c.id}" role="button" tabindex="0"`} aria-label="Camera ${e(c.name)} ${e(c.status)} (simulated feed)">
-      <div class="scene"></div>${off ? '' : `<i class="bb" style="--d:${d}"></i>${c.analytics.includes('Crowd') ? `<i class="bb b2" style="--d:${'-' + (hash(c.id + 'x') % 7) + 's'}"></i>` : ''}`}
-      <div class="ov top"><span>${e(c.name)}</span>${off ? '<span>OFFLINE</span>' : '<span class="rec">REC</span>'}</div>
-      <div class="ov bot"><span>${off ? '--:--:--' : t}</span><span>${e(c.res)} ${e(c.type)}</span></div>${off ? '<div class="nosig">No signal</div>' : ''}${opt.flag ? `<div class="flag">${e(opt.flag)}</div>` : ''}</div>`;
+    const off = c.status === 'offline', key = (opt.ctx || (opt.big ? 'drawer' : 'wall')) + ':' + c.id;
+    return `<div class="feed ${off ? 'off' : ''} ${c.status === 'degraded' ? 'degraded' : ''} ${opt.big ? 'big' : ''}" data-cam="${e(c.id)}" data-key="${e(key)}" ${opt.noclick ? '' : `data-a="openCamera" data-id="${e(c.id)}" role="button" tabindex="0"`} aria-label="Camera ${e(c.name)}, ${e(c.status)}">
+      <div class="scene"></div><div class="vslot"></div>
+      <div class="ov top"><span class="nm">${e(c.name)}</span>${off ? '<span class="live off">OFFLINE</span>' : c.status === 'degraded' ? '<span class="live warn">DEGRADED</span>' : '<span class="live">LIVE</span>'}</div>
+      <div class="ov bot"><span class="ts">${off ? '--:--:--' : clock()}</span><span>${e(c.res)} ${e(c.type)}</span></div>${off ? '<div class="nosig"><span>No signal</span></div>' : ''}${opt.flag ? `<div class="flag">${e(opt.flag)}</div>` : ''}</div>`;
   }
 
   /* ---------- domain operations ---------- */
@@ -103,7 +123,7 @@
   }
   const liveMap = () => !!geoKey() && !GM.failed;
   const mapBlock = (selId) => (liveMap() ? '<div id="mapSlot" class="mapslot" data-sel="' + (selId || '') + '"><div class="empty">Loading map...</div></div>' : cityMap(selId) + (geoKey() ? '<p class="muted small">Live map unavailable (could not load the map library). Showing the schematic map.</p>' : '<p class="muted small">Showing a schematic map. Add a Geoapify API key in Settings to switch to a live street map.</p>'));
-  A.afterRender = function () {
+  const mapRender = function () {
     if (ui.route !== 'psim' || !liveMap()) return;
     const slot = document.getElementById('mapSlot'); if (!slot) return;
     if (!GM.map) { if (GM.loading) return; GM.loading = true; loadLeaflet().then(() => { GM.loading = false; buildMap(); A.render(); }).catch(() => { GM.loading = false; GM.failed = true; A.render(); }); return; }
@@ -111,6 +131,7 @@
     slot.innerHTML = ''; slot.appendChild(GM.el); GM.map.invalidateSize(); drawLayers(sel);
     if (sel && GM.focus !== sel) { GM.focus = sel; const i = inc(sel); if (i) GM.map.flyTo(jitter(i.camera || 'i' + i.id, i.camera ? cam(i.camera).city : i.city, 0.018), Math.max(GM.map.getZoom(), 12), { duration: 0.8 }); }
   };
+  A.afterRender = function () { mapRender(); attachVideos(); };
 
   V.psim = function () {
     const d = D(), act = active(), crit = act.filter((x) => x.sev === 'critical').length, free = d.units.filter((x) => x.status === 'available').length;
@@ -125,9 +146,10 @@
       `<div class="grid" style="grid-template-columns:minmax(280px,380px) minmax(0,1fr);align-items:start;margin-bottom:14px"><div class="card"><h3>${ic('map', 16)}Situation map<span class="sp"></span><span class="muted small">${liveMap() ? 'Live map by Geoapify' : 'Schematic'}</span></h3>${mapBlock(sel && sel.id)}<div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--warn)"></i>High</span><span><i style="background:var(--info)"></i>Medium</span><span><i style="background:var(--ok);border-radius:50%"></i>Camera</span></div></div>
        <div><div class="toolbar">${tabs('pq', [['active', `Active (${act.length})`], ['resolved', 'Resolved'], ['all', 'All']], 'active').replace('class="tabs"', 'class="tabs" style="margin:0;flex:1"')}<select id="p-s" data-filter="p.s" aria-label="Severity">${opts([['', 'All severities'], 'critical', 'high', 'medium', 'low'], sf)}</select></div>
        ${tbl([['Sev'], ['Incident'], ['City'], ['Status'], ['Age'], ['Units']], rows.map((x) => `<tr class="click" data-a="openIncident" data-id="${x.id}" tabindex="0" role="link"><td>${chip(x.sev, sevCls[x.sev])}</td><td><b>#${x.id} ${e(x.type)}</b><div class="muted small">${e(x.location)}</div></td><td>${e(x.city)}</td><td>${chip(x.status, statusCls[x.status])}</td><td class="muted">${fmtDur(Date.now() - x.at)}</td><td>${x.units.map((u) => e(unit(u).name.split(' ').slice(-1)[0])).join(', ') || '-'}</td></tr>`))}</div></div>` +
-      `<div class="card" style="margin-bottom:14px"><h3>${ic('camera', 16)}Video wall${sel ? ' - ' + e(sel.city) + ' (#' + sel.id + ')' : ''}<span class="sp"></span><span class="muted small">Simulated feeds</span></h3>${wallCams.length ? `<div class="wall w4">${wallCams.map((c, i) => feed(c, { flag: i === 0 && sel.camera ? 'INCIDENT' : '' })).join('')}</div>` : empty('No active incident selected')}</div>` +
+      `<div class="card fs-target" style="margin-bottom:14px"><h3>${ic('camera', 16)}Video wall${sel ? ' - ' + e(sel.city) + ' (#' + sel.id + ')' : ''}<span class="sp"></span><span class="muted small">Sample footage</span><button class="btn sm" data-a="wallFs" aria-label="Full screen">${ic('fullscreen', 14)}Full screen</button></h3>${wallCams.length ? `<div class="wall w4">${wallCams.map((c, i) => feed(c, { flag: i === 0 && sel.camera ? 'INCIDENT' : '' })).join('')}</div>` : empty('No active incident selected')}</div>` +
       `<div class="card"><h3>${ic('users', 16)}Field units</h3><div class="grid g3">${d.units.map((u) => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><div class="grow" style="flex:1"><b>${e(u.name)}</b><div class="muted small">${e(u.kind)} - ${e(u.city)}</div></div>${chip(u.status, u.status === 'available' ? 'ok' : 'warn')}</div>`).join('')}</div></div>`;
   };
+  ACT.wallFs = (t) => { const el = t.closest('.fs-target'); if (!el) return; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => A.toast('Full screen is blocked by the browser', 'alert')); };
   ACT.openIncident = (t) => { ui.psimSel = Number(t.dataset.id); A.openDrawer('incident', t.dataset.id); };
   ACT.simEvent = () => {
     if (!A.guard('psim')) return; const d = D(), r21 = d.rules.find((r) => r.id === 'R21');
@@ -192,7 +214,7 @@
     let body = '';
     if (tab === 'live') {
       const lay = fv('v', 'l', '9'), city = fv('v', 'c', ''), list = d.cameras.filter((c) => !city || c.city === city).slice(0, Number(lay));
-      body = `<div class="toolbar"><select id="v-l" data-filter="v.l" aria-label="Layout">${opts([['4', '2 x 2'], ['9', '3 x 3'], ['16', '4 x 4']], lay)}</select><select id="v-c" data-filter="v.c" aria-label="City">${opts([['', 'All cities']].concat(Object.keys(CITY)), city)}</select><span class="sp"></span><span class="muted small">Simulated scenes. Click a tile for controls.</span></div><div class="wall w${lay}">${list.map((c) => feed(c)).join('')}</div>`;
+      body = `<div class="fs-target"><div class="toolbar"><select id="v-l" data-filter="v.l" aria-label="Layout">${opts([['4', '2 x 2'], ['9', '3 x 3'], ['16', '4 x 4']], lay)}</select><select id="v-c" data-filter="v.c" aria-label="City">${opts([['', 'All cities']].concat(Object.keys(CITY)), city)}</select><span class="sp"></span><span class="muted small">Sample footage. Click a tile for controls.</span><button class="btn" data-a="wallFs">${ic('fullscreen', 14)}Full screen</button></div><div class="wall w${lay}">${list.map((c) => feed(c)).join('')}</div></div>`;
     } else if (tab === 'cameras') {
       const q = fv('v', 'q').toLowerCase(), st = fv('v', 's');
       body = `<div class="toolbar"><input id="v-q" data-filter="v.q" type="search" placeholder="Search cameras" value="${e(fv('v', 'q'))}" aria-label="Search cameras" style="min-width:220px"><select id="v-s" data-filter="v.s" aria-label="Status">${opts([['', 'Any status'], 'online', 'degraded', 'offline'], st)}</select><span class="sp"></span><button class="btn primary" data-a="newCamera" ${A.dis('vms')}>${ic('plus', 14)}Add camera</button></div>` +

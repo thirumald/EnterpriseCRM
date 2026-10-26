@@ -23,7 +23,7 @@
   const acctLink = (id) => { const a = A.acct(id); return a ? `<a data-a="openAccount" data-id="${a.id}" style="color:var(--brand);cursor:pointer" role="link" tabindex="0">${e(a.name)}</a>` : '-'; };
   const assetLink = (id) => { const a = A.asset(id); return a ? `<a data-a="openAsset" data-id="${a.id}" style="color:var(--brand);cursor:pointer" role="link" tabindex="0">${e(a.name)}</a>` : '-'; };
   const dl = (pairs) => `<dl class="kv">${pairs.map(([k, v]) => `<dt>${e(k)}</dt><dd>${v}</dd>`).join('')}</dl>`;
-  const agents = () => D().users.filter((u) => ['agent', 'engineer', 'admin'].includes(u.role) && u.status === 'Active').map((u) => u.name);
+  const agents = () => [...new Set(D().users.filter((u) => ['agent', 'engineer', 'admin'].includes(u.role) && u.status === 'Active').map((u) => u.name))];
   const csv = (rows) => rows.map((r) => r.map((c) => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const download = (name, text, mime) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime || 'text/csv' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
 
@@ -316,7 +316,7 @@
     else body = `<div class="grid g3">${d.kb.slice(0, 6).map((k) => `<div class="card" style="cursor:pointer" data-a="openKb" data-id="${k.id}" tabindex="0" role="link"><b>${e(k.title)}</b><div class="muted small">${e(k.cat)}</div></div>`).join('')}</div>`;
     return preview + `<div class="hero"><h1>Welcome, ${e(me.name)}</h1><p>Track requests, ask for help and find answers.</p></div>` + tabs('portal', [['tickets', `My requests (${mine.length})`], ['new', 'New request'], ['help', 'Help articles']], 'tickets') + body;
   };
-  FORMS.portalTicket = (v) => { const me = D().accounts[0]; const t = createTicket({ subject: v.subject.trim(), account: me.id, pri: 'P3', cat: v.cat, source: 'Portal', by: 'Anila Koci', desc: v.desc.trim() }); ui.tab.portal = 'tickets'; A.commit('Portal request created', '#' + t.id); A.toast('Request #' + t.id + ' received. We will respond within ' + fmtDur(sla(t).respT)); };
+  FORMS.portalTicket = (v) => { const me = D().accounts[0]; const t = createTicket({ subject: v.subject.trim(), account: me.id, pri: 'P3', cat: v.cat, source: 'Portal', by: A.ROLES.customer.user, desc: v.desc.trim() }); ui.tab.portal = 'tickets'; A.commit('Portal request created', '#' + t.id); A.toast('Request #' + t.id + ' received. We will respond within ' + fmtDur(sla(t).respT)); };
   ACT.portalCsat = (t) => { const tk = A.ticket(t.dataset.id), n = Number(t.dataset.n); tk.csat = n; const r12 = D().rules.find((r) => r.id === 'R12'); if (n <= 2 && r12.enabled) { const a = A.acct(tk.account); a.health = Math.max(0, a.health - 3); r12.hits++; A.toast('Thanks - your account manager has been notified', 'mail'); } else A.toast('Thank you for your feedback'); A.commit('CSAT submitted', '#' + tk.id); };
 
   /* ====================================================================

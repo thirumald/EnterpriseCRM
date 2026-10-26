@@ -70,9 +70,9 @@ window.makeSeed = function () {
   const tk = (id, subject, account, pri, status, assignee, cat, asset, source, createdMin, extra) =>
     Object.assign({ id, subject, account, pri, status, assignee, cat, asset, source, created: ago(createdMin), firstResponse: null, resolvedAt: null, pausedAt: null, pausedMs: 0, csat: null, comments: [] }, extra || {});
   const tickets = [
-    tk(1043, 'Core switch uplink down - city platform unreachable', 'a1', 'P1', 'In progress', 'Besnik Shehu', 'Network', 'n2', 'Alert', 70, { firstResponse: ago(62), comments: [{ by: 'System', at: ago(70), text: 'Created from critical alert: Interface Gi0/1 down.', internal: true }, { by: 'Besnik Shehu', at: ago(62), text: 'Investigating physical layer, suspect SFP failure.', internal: false }] }),
+    tk(1043, 'Core switch uplink down - city platform unreachable', 'a1', 'P1', 'In progress', 'Thirumal D', 'Network', 'n2', 'Alert', 70, { firstResponse: ago(62), comments: [{ by: 'System', at: ago(70), text: 'Created from critical alert: Interface Gi0/1 down.', internal: true }, { by: 'Thirumal D', at: ago(62), text: 'Investigating physical layer, suspect SFP failure.', internal: false }] }),
     tk(1042, 'ANPR cameras dropping events on the ring road', 'a6', 'P2', 'Open', null, 'Application', 'n7', 'Email', 130),
-    tk(1041, 'GIS database volume almost full on db-gis-01', 'a1', 'P2', 'In progress', 'Elira Kola', 'Database', 'n5', 'Alert', 300, { firstResponse: ago(280), comments: [{ by: 'Elira Kola', at: ago(280), text: 'Capacity review started, archive job proposed.', internal: false }] }),
+    tk(1041, 'GIS database volume almost full on db-gis-01', 'a1', 'P2', 'In progress', 'Thirumal D', 'Database', 'n5', 'Alert', 300, { firstResponse: ago(280), comments: [{ by: 'Thirumal D', at: ago(280), text: 'Capacity review started, archive job proposed.', internal: false }] }),
     tk(1040, 'Citizen portal API latency above 2 s', 'a2', 'P2', 'Pending', 'Besnik Shehu', 'Application', 'n9', 'Portal', 1100, { firstResponse: ago(1060), pausedAt: ago(500), comments: [{ by: 'Besnik Shehu', at: ago(500), text: 'Waiting for the agency to share the upstream trace.', internal: false }] }),
     tk(1039, 'Port terminal system unreachable from Durrës', 'a3', 'P1', 'Open', null, 'Network', 'n12', 'Phone', 22),
     tk(1038, 'Invoice billing address change', 'a3', 'P4', 'Resolved', 'Elira Kola', 'Billing', null, 'Email', 3000, { firstResponse: ago(2980), resolvedAt: ago(2700), csat: 5, comments: [{ by: 'Elira Kola', at: ago(2700), text: 'Address updated and confirmation sent.', internal: false }] }),
@@ -80,7 +80,7 @@ window.makeSeed = function () {
     tk(1036, 'LoRaWAN gateway intermittently offline in Vlorë', 'a4', 'P3', 'In progress', 'Besnik Shehu', 'Network', 'n14', 'Email', 600, { firstResponse: ago(570) }),
     tk(1035, 'Korçë sensor gateway staging checklist', 'a8', 'P4', 'Open', null, 'Server', 'n18', 'Portal', 4000),
     tk(1034, 'Quarterly firewall rule review', 'a2', 'P3', 'Closed', 'Besnik Shehu', 'Network', 'n1', 'API', 9000, { firstResponse: ago(8900), resolvedAt: ago(7000), csat: 5 }),
-    tk(1033, 'Backup job failed for the video archive', 'a1', 'P3', 'Open', 'Elira Kola', 'Server', 'n6', 'Alert', 240, { firstResponse: ago(200) }),
+    tk(1033, 'Backup job failed for the video archive', 'a1', 'P3', 'Open', 'Thirumal D', 'Server', 'n6', 'Alert', 240, { firstResponse: ago(200) }),
     tk(1032, 'TLS certificate renewal for the citizen portal', 'a2', 'P3', 'Resolved', 'Elira Kola', 'Application', null, 'Email', 5200, { firstResponse: ago(5100), resolvedAt: ago(4700), csat: 2, comments: [{ by: 'Elira Kola', at: ago(4700), text: 'Certificate replaced; please confirm.', internal: false }] }),
   ];
 
@@ -162,11 +162,11 @@ window.makeSeed = function () {
   const inc = (id, type, sev, city, location, camera, source, min, status, extra) => Object.assign({ id, type, sev, city, location, camera, source, at: ago(min), status, ackAt: null, units: [], ticket: null, sopDone: 0, timeline: [{ at: ago(min), by: 'System', text: 'Incident created from ' + source }] }, extra || {});
   const incidents = [
     inc(1001, 'ANPR watchlist hit', 'high', 'Tirana', 'Ring Road East, northbound', 'c2', 'VMS analytics', 6, 'new'),
-    inc(1002, 'Crowd density above limit', 'medium', 'Tirana', 'Skanderbeg Square', 'c1', 'VMS analytics', 25, 'acknowledged', { ackAt: ago(22), sopDone: 2, timeline: [{ at: ago(25), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(22), by: 'Genti Dervishi', text: 'Acknowledged and monitoring on the video wall' }] }),
-    inc(1003, 'Smoke detected', 'critical', 'Durrës', 'Container yard, row C', 'c8', 'VMS analytics', 12, 'dispatched', { ackAt: ago(11), units: ['u5'], sopDone: 2, timeline: [{ at: ago(12), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(11), by: 'Genti Dervishi', text: 'Acknowledged' }, { at: ago(10), by: 'Genti Dervishi', text: 'Dispatched Fire Engine D-01' }] }),
+    inc(1002, 'Crowd density above limit', 'medium', 'Tirana', 'Skanderbeg Square', 'c1', 'VMS analytics', 25, 'acknowledged', { ackAt: ago(22), sopDone: 2, timeline: [{ at: ago(25), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(22), by: 'Thirumal D', text: 'Acknowledged and monitoring on the video wall' }] }),
+    inc(1003, 'Smoke detected', 'critical', 'Durrës', 'Container yard, row C', 'c8', 'VMS analytics', 12, 'dispatched', { ackAt: ago(11), units: ['u5'], sopDone: 2, timeline: [{ at: ago(12), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(11), by: 'Thirumal D', text: 'Acknowledged' }, { at: ago(10), by: 'Thirumal D', text: 'Dispatched Fire Engine D-01' }] }),
     inc(1004, 'Street light cluster fault', 'low', 'Vlorë', 'Vlorë seafront, 14 luminaires', null, 'IoT sensor', 70, 'new'),
-    inc(1005, 'Traffic collision', 'high', 'Tirana', 'Tirana-Durrës highway km 8', 'c16', 'VMS analytics', 18, 'dispatched', { ackAt: ago(17), units: ['u1', 'u3'], sopDone: 3, timeline: [{ at: ago(18), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(17), by: 'Genti Dervishi', text: 'Acknowledged' }, { at: ago(15), by: 'Genti Dervishi', text: 'Dispatched Police Patrol T-12 and Ambulance A-07' }] }),
-    inc(1006, 'Smart bin overflow', 'low', 'Shkodër', 'Pedestrian centre, bin cluster 3', null, 'IoT sensor', 300, 'resolved', { ackAt: ago(290), sopDone: 3, timeline: [{ at: ago(300), by: 'System', text: 'Incident created from IoT sensor' }, { at: ago(240), by: 'Genti Dervishi', text: 'Crew emptied the bins. Resolved.' }] }),
+    inc(1005, 'Traffic collision', 'high', 'Tirana', 'Tirana-Durrës highway km 8', 'c16', 'VMS analytics', 18, 'dispatched', { ackAt: ago(17), units: ['u1', 'u3'], sopDone: 3, timeline: [{ at: ago(18), by: 'System', text: 'Incident created from VMS analytics' }, { at: ago(17), by: 'Thirumal D', text: 'Acknowledged' }, { at: ago(15), by: 'Thirumal D', text: 'Dispatched Police Patrol T-12 and Ambulance A-07' }] }),
+    inc(1006, 'Smart bin overflow', 'low', 'Shkodër', 'Pedestrian centre, bin cluster 3', null, 'IoT sensor', 300, 'resolved', { ackAt: ago(290), sopDone: 3, timeline: [{ at: ago(300), by: 'System', text: 'Incident created from IoT sensor' }, { at: ago(240), by: 'Thirumal D', text: 'Crew emptied the bins. Resolved.' }] }),
   ];
   const vmsEvents = [
     { at: ago(6), camera: 'c2', kind: 'ANPR', text: 'Watchlist plate matched (confidence 94%)', incident: 1001 },
@@ -212,7 +212,7 @@ window.makeSeed = function () {
   ].map((r) => ({ id: r[0], name: r[1], cat: r[2], desc: r[3], enabled: r[4], live: r[5], hits: r[4] ? 10 + Math.floor(Math.random() * 90) : 0 }));
 
   const users = [
-    { id: 'u1', name: 'Ardit Basha', email: 'ardit.basha@example.com', role: 'admin', status: 'Active', last: ago(5) },
+    { id: 'u1', name: 'Thirumal D', email: 'thirumal@example.com', role: 'admin', status: 'Active', last: ago(5) },
     { id: 'u2', name: 'Elira Kola', email: 'elira.kola@example.com', role: 'agent', status: 'Active', last: ago(30) },
     { id: 'u3', name: 'Besnik Shehu', email: 'besnik.shehu@example.com', role: 'engineer', status: 'Active', last: ago(12) },
     { id: 'u4', name: 'Mira Hoxha', email: 'mira.hoxha@example.com', role: 'account_manager', status: 'Active', last: ago(180) },

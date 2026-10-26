@@ -1,7 +1,7 @@
 'use strict';
 /* Core: state, helpers, shell (sidebar/topbar), routing, overlays, global event handling. Views live in views.js. */
 (function () {
-  const KEY = 'presight-nexus-v3';
+  const KEY = 'presight-nexus-v4';
   const APP = (window.APP = { views: {}, actions: {}, forms: {}, drawers: {}, modals: {}, BRAND: 'Presight Nexus', DEV: 'Thirumal D' });
 
   /* ---------- helpers ---------- */
@@ -23,14 +23,14 @@
 
   /* ---------- state ---------- */
   let D;
-  const ui = (APP.ui = { route: 'dashboard', arg: null, drawer: null, modal: null, f: {}, sidebar: false, role: 'admin', theme: 'auto', dense: false, tab: {}, cmdSel: 0 });
+  const ui = (APP.ui = { route: 'dashboard', arg: null, drawer: null, modal: null, f: {}, sidebar: false, collapsed: false, role: 'admin', theme: 'auto', dense: false, tab: {}, cmdSel: 0 });
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw && raw.v === 1) { D = raw.D; ui.role = raw.role || 'admin'; ui.theme = raw.theme || 'auto'; ui.dense = !!raw.dense; }
+    if (raw && raw.v === 1) { D = raw.D; ui.role = raw.role || 'admin'; ui.theme = raw.theme || 'auto'; ui.dense = !!raw.dense; ui.collapsed = !!raw.collapsed; }
   } catch (_) { /* storage unavailable */ }
   if (!D) D = window.makeSeed();
   Object.defineProperty(APP, 'D', { get: () => D });
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ v: 1, D, role: ui.role, theme: ui.theme, dense: ui.dense })); } catch (_) {} };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ v: 1, D, role: ui.role, theme: ui.theme, dense: ui.dense, collapsed: ui.collapsed })); } catch (_) {} };
   APP.save = save;
   APP.reset = () => { try { localStorage.removeItem(KEY); } catch (_) {} D = window.makeSeed(); ui.drawer = null; ui.modal = null; render(); toast('Demo data reset'); };
 
@@ -45,12 +45,12 @@
   /* ---------- roles ---------- */
   const ALLV = ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'portal', 'accounts', 'pipeline', 'contracts', 'cmdb', 'ipam', 'automation', 'reports', 'users', 'audit', 'settings'];
   const ROLES = {
-    admin: { label: 'Administrator', views: ALLV, can: ['*'], user: 'Ardit Basha' },
-    agent: { label: 'Service agent', views: ['dashboard', 'psim', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: 'Elira Kola' },
-    engineer: { label: 'Engineer', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules', 'vms'], user: 'Besnik Shehu' },
-    account_manager: { label: 'Account manager', views: ['dashboard', 'intellicity', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: 'Mira Hoxha' },
-    noc: { label: 'NOC operator', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert', 'psim', 'vms'], user: 'Genti Dervishi' },
-    customer: { label: 'Customer (portal)', views: ['portal', 'kb', 'settings'], can: ['portal'], user: 'Anila Koci' },
+    admin: { label: 'Administrator', views: ALLV, can: ['*'], user: APP.DEV },
+    agent: { label: 'Service agent', views: ['dashboard', 'psim', 'noc', 'tickets', 'kb', 'accounts', 'cmdb', 'portal', 'settings'], can: ['ticket', 'alert'], user: APP.DEV },
+    engineer: { label: 'Engineer', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'kb', 'cmdb', 'ipam', 'automation', 'reports', 'settings'], can: ['ticket', 'alert', 'cmdb', 'ipam', 'monitor', 'rules', 'vms'], user: APP.DEV },
+    account_manager: { label: 'Account manager', views: ['dashboard', 'intellicity', 'noc', 'tickets', 'kb', 'accounts', 'pipeline', 'contracts', 'reports', 'settings'], can: ['crm'], user: APP.DEV },
+    noc: { label: 'NOC operator', views: ['dashboard', 'psim', 'vms', 'intellicity', 'noc', 'monitoring', 'topology', 'tickets', 'settings'], can: ['alert', 'psim', 'vms'], user: APP.DEV },
+    customer: { label: 'Customer (portal)', views: ['portal', 'kb', 'settings'], can: ['portal'], user: APP.DEV },
   };
   APP.ROLES = ROLES;
   const roleUser = () => ({ name: ROLES[ui.role].user });
@@ -62,7 +62,7 @@
   /* ---------- navigation ---------- */
   const NAV = [
     ['Overview', [['dashboard', 'Dashboard', 'dashboard']]],
-    ['Smart city', [['psim', 'Command centre (PSIM)', 'siren'], ['vms', 'Video management (VMS)', 'camera'], ['intellicity', 'Intelli City platform', 'city']]],
+    ['Smart city', [['psim', 'Command centre (PSIM)', 'siren'], ['vms', 'Video (VMS)', 'camera'], ['intellicity', 'Intelli City platform', 'city']]],
     ['Operations', [['noc', 'NOC & alerts', 'radar'], ['monitoring', 'Monitoring', 'activity'], ['topology', 'Topology', 'share']]],
     ['Service', [['tickets', 'Help desk', 'ticket'], ['kb', 'Knowledge base', 'book'], ['portal', 'Customer portal', 'globe']]],
     ['CRM', [['accounts', 'Accounts', 'building'], ['pipeline', 'Pipeline', 'funnel'], ['contracts', 'Contracts', 'file']]],
@@ -85,22 +85,24 @@
   function openAlerts() { return D.alerts.filter((a) => a.state === 'open' && a.sev !== 'info').length; }
   function renderShell() {
     const r = ROLES[ui.role];
-    $('#side').innerHTML = `<div class="brand"><img src="assets/presight-logo.png" alt="${e(APP.BRAND)}" width="170" height="49"></div><nav class="nav" aria-label="Main">` +
+    $('#side').innerHTML = `<div class="brand"><img class="logo-full" src="assets/presight-logo.png" alt="${e(APP.BRAND)}" width="170" height="49"><img class="logo-mini" src="assets/favicon.png" alt="${e(APP.BRAND)}" width="32" height="32"></div><nav class="nav" aria-label="Main">` +
       NAV.map(([g, items]) => {
         const vis = items.filter((i) => r.views.includes(i[0]));
-        return vis.length ? `<div class="nav-group"><h6>${e(g)}</h6>${vis.map((i) => `<a data-a="nav" data-id="${i[0]}" class="${ui.route === i[0] ? 'on' : ''}" tabindex="0" role="link">${ic(i[2])}<span>${e(i[1])}</span>${i[0] === 'noc' && openAlerts() ? `<span class="badge">${openAlerts()}</span>` : ''}</a>`).join('')}</div>` : '';
-      }).join('') + '</nav><div class="dev-foot">Developed by <b>' + e(APP.DEV) + '</b></div>';
+        return vis.length ? `<div class="nav-group"><h6>${e(g)}</h6>${vis.map((i) => `<a data-a="nav" data-id="${i[0]}" title="${e(i[1])}" class="${ui.route === i[0] ? 'on' : ''}" tabindex="0" role="link" ${ui.route === i[0] ? 'aria-current="page"' : ''}>${ic(i[2])}<span>${e(i[1])}</span>${i[0] === 'noc' && openAlerts() ? `<span class="badge">${openAlerts()}</span>` : ''}</a>`).join('')}</div>` : '';
+      }).join('') + '</nav><div class="dev-foot"><span>Developed by <b>' + e(APP.DEV) + '</b></span></div>';
+    $('#app').classList.toggle('mini', ui.collapsed);
     $('#side').classList.toggle('on', ui.sidebar);
     $('#scrim').classList.toggle('on', ui.sidebar);
-    $('#top').innerHTML = `<button class="iconbtn menu-btn" data-a="menu" aria-label="Open menu">${ic('menu')}</button>
-      <h2>${e(TITLES[ui.route] || '')}</h2><div class="sp"></div>
+    const grp = (NAV.find((g) => g[1].some((i) => i[0] === ui.route)) || [''])[0], crit = D.alerts.filter((x) => x.state === 'open' && x.sev === 'critical' && !x.suppressed).length + (D.incidents || []).filter((x) => x.status !== 'resolved' && x.sev === 'critical').length;
+    $('#top').innerHTML = `<button class="iconbtn menu-btn" data-a="menu" aria-label="Open menu">${ic('menu')}</button><button class="iconbtn collapse-btn" data-a="collapse" aria-label="Collapse sidebar" title="Collapse sidebar">${ic(ui.collapsed ? 'panelOpen' : 'panelClose')}</button>
+      <div class="crumbs"><span class="muted">${e(grp)}</span><span class="muted sep">/</span><h2>${e(TITLES[ui.route] || '')}</h2></div><div class="sp"></div>
       <div class="search" data-a="cmd" role="button" tabindex="0" aria-label="Search">${ic('search', 16)}<span>Search tickets, accounts, assets</span><kbd>Ctrl K</kbd></div>
-      <label class="hide-m small muted" for="roleSel">View as</label>
-      <select class="role hide-m" id="roleSel" data-change="role" aria-label="View as role">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === ui.role ? 'selected' : ''}>${e(v.label)}</option>`).join('')}</select>
-      <button class="iconbtn" data-a="nav" data-id="noc" aria-label="Alerts">${ic('bell')}${openAlerts() ? `<span class="dot">${openAlerts()}</span>` : ''}</button>
-      <button class="iconbtn" data-a="fullscreen" aria-label="Toggle full screen" title="Full screen">${ic('expand')}</button>
+      <div class="status-pill ${crit ? 'bad' : 'good'} hide-m" title="${crit ? crit + ' critical item(s) need attention' : 'No critical alerts or incidents'}"><i></i>${crit ? crit + ' critical' : 'All systems normal'}</div>
+      <div class="clock hide-m" id="clock" aria-label="Local time">${new Date().toLocaleTimeString('en-GB')}</div>
+      <button class="iconbtn" data-a="nav" data-id="noc" aria-label="Alerts" title="Alerts">${ic('bell')}${openAlerts() ? `<span class="dot">${openAlerts()}</span>` : ''}</button>
+      <button class="iconbtn hide-m" data-a="fullscreen" aria-label="Toggle full screen" title="Full screen">${ic('expand')}</button>
       <button class="iconbtn" data-a="theme" aria-label="Toggle theme" title="Theme">${ic(isDark() ? 'sun' : 'moon')}</button>
-      <div class="avatar" title="${e(roleUser().name)}">${e(initials(roleUser().name))}</div>`;
+      <div class="user"><div class="avatar">${e(initials(roleUser().name))}</div><div class="who hide-m"><b>${e(roleUser().name)}</b><select class="role" id="roleSel" data-change="role" aria-label="View as role">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === ui.role ? 'selected' : ''}>${e(v.label)}</option>`).join('')}</select></div></div>`;
   }
   const isDark = () => (ui.theme === 'dark' || (ui.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches));
   function applyTheme() {
@@ -182,6 +184,7 @@
     const a = t.dataset.a, id = t.dataset.id;
     switch (a) {
       case 'nav': ui.sidebar = false; APP.closeDrawer(); APP.go(id); break;
+      case 'collapse': ui.collapsed = !ui.collapsed; save(); render(); break;
       case 'menu': ui.sidebar = !ui.sidebar; renderShell(); break;
       case 'theme': ui.theme = isDark() ? 'light' : 'dark'; save(); render(); break;
       case 'fullscreen': document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => toast('Full screen is blocked by the browser', 'alert')); break;
@@ -224,6 +227,7 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (ui.theme === 'auto') render(); });
 
   /* ---------- live ticking: SLA clocks + simulated telemetry ---------- */
+  setInterval(() => { const c = document.getElementById('clock'); if (c) c.textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
   setInterval(() => { if (!document.hidden && !ui.modal && !ui.cmd && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) { if (APP.tick) APP.tick(); render(); } }, 5000);
 
   /* ---------- boot ---------- */

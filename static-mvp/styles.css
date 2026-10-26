@@ -202,3 +202,9 @@ svg text{font-family:inherit}
 .arch .ab.bad rect{stroke:var(--crit);fill:var(--crit-soft)}
 .arch text{fill:var(--text);font-size:12px}.arch .sub{fill:var(--muted);font-size:10px}.arch .lbl{fill:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .arch .arr{stroke:var(--muted);stroke-width:1.4;fill:none}
+
+.mapslot{height:460px;border-radius:10px;overflow:hidden;border:1px solid var(--line);position:relative}
+.gm{width:100%;height:100%}
+.cm-label{transform:translate(8px,-9px);white-space:nowrap;font:600 11px system-ui,sans-serif;color:#16202e;background:rgba(255,255,255,.88);padding:1px 6px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.pin{display:block;width:16px;height:16px;border-radius:50%;background:var(--pc);border:2px solid #fff;box-shadow:0 0 0 0 var(--pc);animation:ring 1.8s infinite}
+@keyframes ring{70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}

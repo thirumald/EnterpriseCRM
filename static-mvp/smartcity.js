@@ -70,6 +70,48 @@
     const marks = active().map((i) => { const [x, y] = proj(CITY[i.city]), h = hash('i' + i.id), a = (h % 360) * Math.PI / 180, r = 24 + (h % 12), cx = x + Math.cos(a) * r, cy = y + Math.sin(a) * r; return `<g data-a="openIncident" data-id="${i.id}" style="cursor:pointer" tabindex="0" role="button" aria-label="Incident ${i.id} ${e(i.type)}"><circle class="pulse" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="9" fill="${col[i.sev]}" opacity=".35"/><circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="${col[i.sev]}" stroke="#fff" stroke-width="${selId === i.id ? 3 : 1.5}"/><title>#${i.id} ${e(i.type)} - ${e(i.city)}</title></g>`; }).join('');
     return `<svg class="cmap" viewBox="0 0 330 500" role="img" aria-label="Schematic map of Albania with cameras and active incidents"><polygon class="land" points="${poly}"/>${cams}${cities}${marks}<text x="8" y="494" style="font-size:9px">Schematic map, not to scale</text></svg>`;
   }
+  /* ---------- Geoapify live map (Leaflet + Geoapify raster tiles). Falls back to the schematic map without a key. ---------- */
+  const LEAFLET = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
+  const geoKey = () => { let k = ''; try { k = localStorage.getItem('geoapify-key') || ''; } catch (_) { /* storage blocked */ } return (k || window.GEOAPIFY_KEY || '').trim(); };
+  const GM = (A.GM = { map: null, el: null, layer: null, tile: null, style: '', loading: false, failed: false, errs: 0, ok: 0, view: false });
+  const isDark = () => document.documentElement.dataset.theme === 'dark';
+  const geoStyle = () => (isDark() ? 'dark-matter' : 'osm-bright');
+  const tileUrl = () => 'https://maps.geoapify.com/v1/tile/' + geoStyle() + '/{z}/{x}/{y}{r}.png?apiKey=' + encodeURIComponent(geoKey());
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = LEAFLET + 'leaflet.min.css'; document.head.appendChild(css);
+      const js = document.createElement('script'); js.src = LEAFLET + 'leaflet.min.js'; js.onload = res; js.onerror = rej; document.head.appendChild(js);
+    });
+  }
+  const jitter = (id, city, scale) => { const h = hash(id), a = (h % 360) * Math.PI / 180, r = scale * (0.4 + (h % 7) / 10); return [CITY[city][1] + Math.sin(a) * r, CITY[city][0] + Math.cos(a) * r * 1.3]; };
+  function buildMap() {
+    const L = window.L; GM.el = document.createElement('div'); GM.el.className = 'gm';
+    GM.map = L.map(GM.el, { zoomControl: true, attributionControl: true, minZoom: 6 }).fitBounds([[39.7, 19.2], [42.65, 21.05]]);
+    GM.style = geoStyle(); GM.errs = 0; GM.ok = 0;
+    GM.tile = L.tileLayer(tileUrl(), { maxZoom: 19, detectRetina: true, attribution: 'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a> | &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(GM.map);
+    GM.tile.on('tileload', () => { GM.ok++; }).on('tileerror', () => { GM.errs++; if (GM.errs === 4 && !GM.ok) { A.toast('Geoapify rejected the tile requests. Check the API key in Settings.', 'alert'); } });
+    GM.layer = L.layerGroup().addTo(GM.map);
+  }
+  function drawLayers(selId) {
+    const L = window.L, d = D(), col = { critical: '#d92d20', high: '#b54708', medium: '#175cd3', low: '#667085' };
+    if (GM.style !== geoStyle()) { GM.style = geoStyle(); GM.tile.setUrl(tileUrl()); }
+    GM.layer.clearLayers();
+    Object.keys(CITY).forEach((n) => { const k = active().filter((i) => i.city === n).length; L.marker([CITY[n][1], CITY[n][0]], { icon: L.divIcon({ className: '', html: `<div class="cm-label">${e(n)}${k ? ' <b>' + k + '</b>' : ''}</div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(GM.layer); });
+    d.cameras.forEach((c) => { const ll = jitter(c.id, c.city, 0.018); L.circleMarker(ll, { radius: 5, color: '#fff', weight: 1.5, fillColor: c.status === 'online' ? '#067647' : c.status === 'degraded' ? '#b54708' : '#d92d20', fillOpacity: 1 }).bindTooltip(c.name + ' (' + c.status + ')').on('click', () => A.openDrawer('camera', c.id)).addTo(GM.layer); });
+    active().forEach((i) => { const ll = i.camera ? jitter(i.camera, cam(i.camera).city, 0.018) : jitter('i' + i.id, i.city, 0.03); L.marker(ll, { icon: L.divIcon({ className: '', html: `<span class="pin" style="--pc:${col[i.sev]}${selId === i.id ? ';outline:3px solid #2f5bea' : ''}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] }), title: '#' + i.id + ' ' + i.type, zIndexOffset: 500 }).on('click', () => { ui.psimSel = i.id; A.openDrawer('incident', i.id); }).addTo(GM.layer); });
+  }
+  const liveMap = () => !!geoKey() && !GM.failed;
+  const mapBlock = (selId) => (liveMap() ? '<div id="mapSlot" class="mapslot" data-sel="' + (selId || '') + '"><div class="empty">Loading map...</div></div>' : cityMap(selId) + (geoKey() ? '<p class="muted small">Live map unavailable (could not load the map library). Showing the schematic map.</p>' : '<p class="muted small">Showing a schematic map. Add a Geoapify API key in Settings to switch to a live street map.</p>'));
+  A.afterRender = function () {
+    if (ui.route !== 'psim' || !liveMap()) return;
+    const slot = document.getElementById('mapSlot'); if (!slot) return;
+    if (!GM.map) { if (GM.loading) return; GM.loading = true; loadLeaflet().then(() => { GM.loading = false; buildMap(); A.render(); }).catch(() => { GM.loading = false; GM.failed = true; A.render(); }); return; }
+    const sel = Number(slot.dataset.sel) || null;
+    slot.innerHTML = ''; slot.appendChild(GM.el); GM.map.invalidateSize(); drawLayers(sel);
+    if (sel && GM.focus !== sel) { GM.focus = sel; const i = inc(sel); if (i) GM.map.flyTo(jitter(i.camera || 'i' + i.id, i.camera ? cam(i.camera).city : i.city, 0.018), Math.max(GM.map.getZoom(), 12), { duration: 0.8 }); }
+  };
+
   V.psim = function () {
     const d = D(), act = active(), crit = act.filter((x) => x.sev === 'critical').length, free = d.units.filter((x) => x.status === 'available').length;
     const acked = d.incidents.filter((x) => x.ackAt), avg = acked.length ? acked.reduce((s, x) => s + (x.ackAt - x.at), 0) / acked.length : 0;
@@ -80,7 +122,7 @@
     return head('Command centre (PSIM)', 'Physical security information management: video analytics, sensors and field units in one incident workflow',
       `<button class="btn" data-a="newIncident" ${A.dis('psim')}>${ic('plus', 14)}Report incident</button><button class="btn danger" data-a="simEvent" ${A.dis('psim')}>${ic('zap', 14)}Simulate analytics event</button>`) +
       `<div class="grid g4" style="margin-bottom:14px">${kpi('siren', act.length, 'Active incidents', act.length ? 'warn' : 'ok')}${kpi('alert', crit, 'Critical', crit ? 'crit' : 'ok')}${kpi('clock', acked.length ? fmtDur(avg) : '-', 'Avg. time to acknowledge')}${kpi('users', free + '/' + d.units.length, 'Units available', free ? 'ok' : 'crit')}${kpi('camera', d.cameras.filter((c) => c.status === 'online').length + '/' + d.cameras.length, 'Cameras online')}</div>` +
-      `<div class="grid" style="grid-template-columns:minmax(280px,380px) minmax(0,1fr);align-items:start;margin-bottom:14px"><div class="card"><h3>${ic('map', 16)}Situation map</h3>${cityMap(sel && sel.id)}<div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--warn)"></i>High</span><span><i style="background:var(--info)"></i>Medium</span><span><i style="background:var(--ok);border-radius:50%"></i>Camera</span></div></div>
+      `<div class="grid" style="grid-template-columns:minmax(280px,380px) minmax(0,1fr);align-items:start;margin-bottom:14px"><div class="card"><h3>${ic('map', 16)}Situation map<span class="sp"></span><span class="muted small">${liveMap() ? 'Live map by Geoapify' : 'Schematic'}</span></h3>${mapBlock(sel && sel.id)}<div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--warn)"></i>High</span><span><i style="background:var(--info)"></i>Medium</span><span><i style="background:var(--ok);border-radius:50%"></i>Camera</span></div></div>
        <div><div class="toolbar">${tabs('pq', [['active', `Active (${act.length})`], ['resolved', 'Resolved'], ['all', 'All']], 'active').replace('class="tabs"', 'class="tabs" style="margin:0;flex:1"')}<select id="p-s" data-filter="p.s" aria-label="Severity">${opts([['', 'All severities'], 'critical', 'high', 'medium', 'low'], sf)}</select></div>
        ${tbl([['Sev'], ['Incident'], ['City'], ['Status'], ['Age'], ['Units']], rows.map((x) => `<tr class="click" data-a="openIncident" data-id="${x.id}" tabindex="0" role="link"><td>${chip(x.sev, sevCls[x.sev])}</td><td><b>#${x.id} ${e(x.type)}</b><div class="muted small">${e(x.location)}</div></td><td>${e(x.city)}</td><td>${chip(x.status, statusCls[x.status])}</td><td class="muted">${fmtDur(Date.now() - x.at)}</td><td>${x.units.map((u) => e(unit(u).name.split(' ').slice(-1)[0])).join(', ') || '-'}</td></tr>`))}</div></div>` +
       `<div class="card" style="margin-bottom:14px"><h3>${ic('camera', 16)}Video wall${sel ? ' - ' + e(sel.city) + ' (#' + sel.id + ')' : ''}<span class="sp"></span><span class="muted small">Simulated feeds</span></h3>${wallCams.length ? `<div class="wall w4">${wallCams.map((c, i) => feed(c, { flag: i === 0 && sel.camera ? 'INCIDENT' : '' })).join('')}</div>` : empty('No active incident selected')}</div>` +
@@ -228,6 +270,18 @@
       <div class="card"><h3>${ic('camera', 16)}Video management</h3>${dl([['Cameras online', d.cameras.filter((c) => c.status === 'online').length + ' of ' + d.cameras.length], ['Analytics events', String(d.vmsEvents.length)], ['Units available', d.units.filter((u) => u.status === 'available').length + ' of ' + d.units.length]])}<a class="btn sm" data-a="nav" data-id="vms" role="link" tabindex="0">Open VMS</a></div></div>`;
     return html + (ui.role === 'customer' ? '' : card);
   };
+
+  /* Settings: Geoapify key */
+  const oldSettings = V.settings;
+  V.settings = function () {
+    const k = geoKey(), masked = k ? k.slice(0, 4) + '...' + k.slice(-3) : '';
+    return oldSettings() + `<div class="card" style="margin-top:14px;max-width:760px"><h3>${ic('map', 16)}Map provider (Geoapify)<span class="sp"></span>${chip(k ? (GM.failed ? 'library blocked' : 'key set') : 'not configured', k && !GM.failed ? 'ok' : '')}</h3>
+      <p class="muted">The command centre can show live street maps from Geoapify. Create a free key at <a href="https://myprojects.geoapify.com/" target="_blank" rel="noopener" style="color:var(--brand)">myprojects.geoapify.com</a> and restrict it to your site's domain. The key is stored in this browser only${k ? ' (current: ' + e(masked) + ')' : ''}.</p>
+      <form data-form="geoKey" class="row wrap"><input name="key" placeholder="Geoapify API key" autocomplete="off" spellcheck="false" style="flex:1;min-width:220px" aria-label="Geoapify API key"><button class="btn primary">Save key</button>${k ? '<button type="button" class="btn danger" data-a="geoClear">Remove</button>' : ''}</form></div>`;
+  };
+  const resetMap = () => { if (GM.map) { GM.map.remove(); GM.map = null; GM.el = null; } GM.failed = false; GM.focus = null; };
+  FORMS.geoKey = (v) => { const k = (v.key || '').trim(); if (!/^[A-Za-z0-9]{16,64}$/.test(k)) { A.toast('That does not look like a Geoapify key', 'alert'); return; } try { localStorage.setItem('geoapify-key', k); } catch (_) { A.toast('Browser storage is blocked, the key will not persist', 'alert'); window.GEOAPIFY_KEY = k; } resetMap(); A.commit('Geoapify key saved'); A.toast('Key saved. Open the command centre to see the live map.', 'map'); };
+  ACT.geoClear = () => { try { localStorage.removeItem('geoapify-key'); } catch (_) { /* ignore */ } window.GEOAPIFY_KEY = ''; resetMap(); A.commit('Geoapify key removed'); A.toast('Key removed'); };
 
   /* normalise seed incidents and keep the palette search aware of the new objects */
   D().incidents.forEach(sopFor);
